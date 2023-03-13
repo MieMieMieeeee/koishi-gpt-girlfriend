@@ -23,10 +23,10 @@ commands:
       prompt:
         baseAniGirl: |-
           Give a JSON description of a Japanese anime female character.
-          Contain following key in english: age,hair_color,eye_color,specialty(option),career,personality,height,weight,appearance,hobbies,background.
+          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),appearance,hobbies,background.
           value translate into Simplified Chinese.Like "hair_color": "黑色"
         baseAniGirlTest: |-
-          Give a JSON description of a Japanese anime female character.
-          Contain following key in english: age,hair_color,eye_color,specialty(option),career,personality,height,weight,appearance,hobbies,background.
+          Give a JSON description of a abnormal anime female character.
+          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),appearance,hobbies,background.
           value translate into Simplified Chinese.Like "hair_color": "黑色"
           

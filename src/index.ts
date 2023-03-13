@@ -1,4 +1,4 @@
-import { Context, Logger, Quester,Session,Command  } from 'koishi'
+import { Context, Logger, Quester,Session,Command,h  } from 'koishi'
 import { Config } from './config'
 import { } from '@mirror_cy/gpt'
 
@@ -29,6 +29,7 @@ export function apply(ctx: Context, config: Config) {
   ctx.command(`gptgf <prompts:text>`)
         .alias('女友盲盒')
         .action(async ({ session }, text) => {
+          session.send("努力搬运盲盒中...")
           await gptgf(session, text)
         });
 
@@ -91,7 +92,7 @@ export function apply(ctx: Context, config: Config) {
     const keyValueStrings = Object.entries(selectedData).map(([key, value]) => `${key}: ${value}`);
 
     const output = keyValueStrings.join("\n");
-    session.send(`恭喜你，你今天交到了一个${data.age}美丽的女友！\n${output}`);
+    session.send(h('quote', { id: session.messageId }) +`恭喜你，你今天交到了一个${data.age}美丽的女友！\n${output}`);
     
     text =data.appearance+data.hobbies
     // console.log(text)
@@ -123,7 +124,7 @@ export function apply(ctx: Context, config: Config) {
 
   function handleError(session: Session, err: Error) {
     const prefix= 'commands.gptsd.messages'
-    
+    console.log(err)
     if (Quester.isAxiosError(err)) {
       if (err.response?.data) {
         logger.error(err.response.data)

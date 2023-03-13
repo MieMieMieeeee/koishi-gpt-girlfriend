@@ -10,8 +10,9 @@
   - 用gpt生产tag并直接调用绘画插件绘图
 - gptgf 女友盲盒  
   - 不知道说什么？那就随机抽个！
-  - demo:
-    - ![demo](https://raw.githubusercontent.com/MieMieMieeeee/koishi-gpt-girlfriend/main/img/demo.png)
+
+![demo](https://raw.githubusercontent.com/MieMieMieeeee/koishi-gpt-girlfriend/main/img/demo.png)
 ## 粗糙的更新日志
 - 0.1.0 添加了女友盲盒的功能
-- 0.1.4 修正了一些女友的属性（继续调整ing）
+- 0.1.4 修正了一些女友的属性（逐步调整ing）
+- 0.1.5 gptgf指令下，群聊回复时引用对话
