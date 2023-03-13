@@ -1,10 +1,7 @@
 {
   "name": "@miemiemie/koishi-plugin-gpt-girlfriend",
-  "description": "随机抽个女友/根据要求自动生成提示词约稿",
-  "version": "0.1.4",
-  "contributors": [                       
-    "miemiemie <ndschen123@gmail.com>"
-  ],
+  "description": "use gpt to generate prompt for stable diffusion",
+  "version": "0.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -18,19 +15,7 @@
     "koishi",
     "plugin"
   ],
-  "koishi": {
-    "service": {
-      "required": [
-        "gpt"
-      ]
-    },
-    "locales": ["zh"]
-  },
   "peerDependencies": {
-    "koishi": "^4.11.9"
-  },
-  "devDependencies": {
-    "@types/node": "^18.11.18",
     "koishi": "^4.11.9"
   }
 }

@@ -11,8 +11,6 @@ tsconfig.tsbuildinfo
 .DS_Store
 .idea
 .vscode
-.editorconfig
-.npmignore
 *.suo
 *.ntvs*
 *.njsproj
