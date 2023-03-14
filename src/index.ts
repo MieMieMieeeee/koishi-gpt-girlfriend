@@ -30,7 +30,7 @@ export function apply(ctx: Context, config: Config) {
   ctx.command(`gptgf <prompts:text>`)
     .alias('女友盲盒')
     .action(async ({ session }, text) => {
-      session.send("努力搬运盲盒中...")
+      session.send(session.text(".init"))
       await gptgf(session, text)
     });
 
@@ -42,28 +42,18 @@ export function apply(ctx: Context, config: Config) {
     if (config.tag) {
       session.send(`tag： ${sdPrompt}`);
     }
-
-    //执行绘图
-    // session.send(`${config.command} ${sdPrompt}`);
     await session.execute(`${config.command} ${sdPrompt}`);
   }
 
   async function gptgf(session: Session, text: string,) {
-    const types = ["Japanese anime","Chinese",  "abnormal anime"];
+    const types = ["Japanese anime", "Chinese", "abnormal anime"];
     // const types = ["loli"];
     const type = types[Math.floor(Math.random() * types.length)];
     const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
-    console.log(prompt);
+    // console.log(prompt);
     const response = await ask(session, prompt);
     // console.log(response);
-    const start = response.indexOf('{');
-    const end = response.indexOf('}');
-    const jsonString = response.substring(start, end + 1);
-    const data = JSON.parse(jsonString);
-
-    // for (const key in data) {
-    //   console.log(`${key}: ${data[key]}`);
-    // }
+    const data = JSON.parse(response.match(/{.*}/s)[0]);
 
     const translations = {
       "age": "年龄",
@@ -77,16 +67,14 @@ export function apply(ctx: Context, config: Config) {
       "hobbies": "爱好",
       "background": "背景"
     };
-    const translatedData = {};
 
+    //筛选输出属性
+    const translatedData = {};
     for (const key in data) {
       const translatedKey = translations[key] || key;
       translatedData[translatedKey] = data[key];
     }
-
     const selectedKeys = ['职业', '特长', '外貌', '爱好', '背景'];
-
-
     let selectedData = Object.fromEntries(
       Object.entries(translatedData).filter(([key, value]) => selectedKeys.includes(key))
     );
@@ -98,10 +86,15 @@ export function apply(ctx: Context, config: Config) {
     const keyValueStrings = Object.entries(selectedData).map(([key, value]) => `${key}: ${value}`);
 
     const output = keyValueStrings.join("\n");
-    const age = data.age.match(/\d+/)?.[0];
-    session.send(h('quote', { id: session.messageId }) + `恭喜你，你今天交到了一个${age ? age + "岁" : "年龄不详"}的美丽的女友！\n${output}`);
-
-    text = data.appearance + "" + data.hobbies + " 女" + data.career
+    let age = data.age.match(/\d+/)?.[0];
+    age = age + session.text(age ? ".age": ".ageUnkown") 
+    session.send(
+      h('quote', { id: session.messageId }) +
+      session.text('.newFriend', { age: age, output: output })
+    );
+    
+    //画图
+    text = data.appearance + " " + data.hobbies + " "+ session.text(".female") + data.career
     // console.log(text)
     const promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
     // console.log(promptTag)
@@ -149,7 +142,7 @@ export function apply(ctx: Context, config: Config) {
   }
 
   function generateAge(): number {
-    // stddev = 20
+    // 分布 mean = 50 stddev = 20
     const mean = 50, lowerBound = 8, upperBound = 60, avg = 20;
     const probabilities = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 17, 18, 18, 18, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 16, 16, 15, 14, 14, 13, 13, 12, 11, 11, 10, 10, 9, 9, 8, 7, 7, 6, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1];
     let age = generateRandomNumber(probabilities);
@@ -163,20 +156,12 @@ export function apply(ctx: Context, config: Config) {
   }
 
   function generateRandomNumber(probabilities: number[]): number {
-    const n = probabilities.length;
-    const cdf = new Array(n);
-    let sum = 0;
-    for (let i = 0; i < n; i++) {
-      sum += probabilities[i];
-      cdf[i] = sum;
-    }
-    const rnd = Math.random() * sum;
-    for (let i = 0; i < n; i++) {
-      if (rnd < cdf[i]) {
-        return i;
-      }
-    }
-    return n - 1;
+    const cdf = probabilities.reduce((acc, val) => {
+      acc.push(acc.length === 0 ? val : acc[acc.length - 1] + val);
+      return acc;
+    }, []);
+    const rnd = Math.random() * cdf[cdf.length - 1];
+    return cdf.findIndex((val) => val > rnd);
   }
 
 }

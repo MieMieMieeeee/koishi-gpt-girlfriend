@@ -18,14 +18,21 @@ commands:
     usage: |-
       以下为实例
       gptgf
-
     messages:
+      newFriend: |-
+        恭喜你，你今天交到了一个{age}的美丽的女友！
+        {output}
+      age: 岁
+      ageUnkown: 年龄不详
+      female: 女
+      init: |-
+        <random>
+          <>努力搬运盲盒中...</>
+          <>正在提交盲盒订单...</>
+          <>派送盲盒中...</>
+        </random>.
       prompt:
         baseAniGirl: |-
           Give a JSON description of a {type} female character.
-          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),appearance,hobbies,background.
-          value translate into Simplified Chinese.Like "hair_color": "黑色"
-        baseAniGirlTest: |-
-          Give a JSON description of a abnormal anime female character.
           Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),appearance,hobbies,background.
           value translate into Simplified Chinese.Like "hair_color": "黑色"
