@@ -1,6 +1,7 @@
-import { Context, Logger, Quester,Session,Command,h  } from 'koishi'
+import { Context, Logger, Quester, Session, Command, h } from 'koishi'
 import { Config } from './config'
 import { } from '@mirror_cy/gpt'
+
 
 export const name = 'gptsd'
 export * from './config'
@@ -8,10 +9,10 @@ export * from './config'
 export const usage = `
 ## 指令：
 - gptsd gpt约稿 智能约稿
-  - (beta)用gpt生产tag并直接调用绘画插件绘图
+  - 用gpt生成tag并直接调用绘画插件绘图。
 - gptgf 女友盲盒  
-  - 不知道说什么？那就随机抽个！
-  - (beta beta beta)没怎么测试过，有任何Bug可以去koishi群里@miemiemie
+  - 使用gpt服务随机抽取一个女友资料，并调用绘图插件对女友进行绘图。
+- [如果你想看栗子](https://www.npmjs.com/package/@miemiemie/koishi-plugin-gpt-girlfriend)
 ## 注意：
 - gpt服务（需额外安装）推荐rr-gpt
 - 画图插件（需额外安装）推荐rryth或者novelai`
@@ -21,19 +22,19 @@ const logger = new Logger(name)
 export function apply(ctx: Context, config: Config) {
   ctx.i18n.define('zh', require('./locales/zh'))
   ctx.command(`gptsd <prompts:text>`)
-        .alias('gpt约稿')
-        .alias('智能约稿')
-        .action(async ({ session }, text) => {
-          await gptsd(session, text)
-        });
+    .alias('gpt约稿')
+    .alias('智能约稿')
+    .action(async ({ session }, text) => {
+      await gptsd(session, text)
+    });
   ctx.command(`gptgf <prompts:text>`)
-        .alias('女友盲盒')
-        .action(async ({ session }, text) => {
-          session.send("努力搬运盲盒中...")
-          await gptgf(session, text)
-        });
+    .alias('女友盲盒')
+    .action(async ({ session }, text) => {
+      session.send("努力搬运盲盒中...")
+      await gptgf(session, text)
+    });
 
-  async function gptsd(session: Session ,text: string,){
+  async function gptsd(session: Session, text: string,) {
     if (!text?.trim())
       return session.execute(`help ${name}`);
     const prompt = session.text('.prompt.baseTag', { text });
@@ -47,9 +48,14 @@ export function apply(ctx: Context, config: Config) {
     await session.execute(`${config.command} ${sdPrompt}`);
   }
 
-  async function gptgf(session: Session ,text: string,){
-    const prompt = session.text('.prompt.baseAniGirl');
+  async function gptgf(session: Session, text: string,) {
+    const types = ["Japanese anime","Chinese",  "abnormal anime"];
+    // const types = ["loli"];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
+    console.log(prompt);
     const response = await ask(session, prompt);
+    // console.log(response);
     const start = response.indexOf('{');
     const end = response.indexOf('}');
     const jsonString = response.substring(start, end + 1);
@@ -78,35 +84,31 @@ export function apply(ctx: Context, config: Config) {
       translatedData[translatedKey] = data[key];
     }
 
-    const selectedKeys = ['职业', '特长','外貌','爱好','背景'];
+    const selectedKeys = ['职业', '特长', '外貌', '爱好', '背景'];
 
-    
+
     let selectedData = Object.fromEntries(
       Object.entries(translatedData).filter(([key, value]) => selectedKeys.includes(key))
     );
-    selectedData={
+    selectedData = {
       "体型": `${data.height}/${data.weight}`,
       ...selectedData,
     }
-    
+
     const keyValueStrings = Object.entries(selectedData).map(([key, value]) => `${key}: ${value}`);
 
     const output = keyValueStrings.join("\n");
-    session.send(h('quote', { id: session.messageId }) +`恭喜你，你今天交到了一个${data.age}美丽的女友！\n${output}`);
-    
-    text =data.appearance+data.hobbies
+    const age = data.age.match(/\d+/)?.[0];
+    session.send(h('quote', { id: session.messageId }) + `恭喜你，你今天交到了一个${age ? age + "岁" : "年龄不详"}的美丽的女友！\n${output}`);
+
+    text = data.appearance + "" + data.hobbies + " 女" + data.career
     // console.log(text)
     const promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
+    // console.log(promptTag)
     let sdPrompt = await ask(session, promptTag);
-    sdPrompt = sdPrompt.replace(/#/g, ""); 
+    sdPrompt = sdPrompt.replace(/#/g, "");
     // console.log(sdPrompt)
     await session.execute(`${config.command} ${sdPrompt}`);
-
-    // const sdPrompt = await ask(session, prompt);
-
-    //执行绘图
-    // session.send(`${config.command} ${sdPrompt}`);
-    // await session.execute(`${config.command} ${sdPrompt}`);
   }
 
 
@@ -123,7 +125,7 @@ export function apply(ctx: Context, config: Config) {
   }
 
   function handleError(session: Session, err: Error) {
-    const prefix= 'commands.gptsd.messages'
+    const prefix = 'commands.gptsd.messages'
     console.log(err)
     if (Quester.isAxiosError(err)) {
       if (err.response?.data) {
@@ -136,14 +138,46 @@ export function apply(ctx: Context, config: Config) {
         return session.text(`${prefix}.response-error`, [err.response.status])
       } else if (err.code === 'ETIMEDOUT') {
         return session.text(`${prefix}.request-timeout`)
-      }  else if (err.code === 'ECONNRESET') {
-          return session.text(`${prefix}.request-failed`, [err.code])
+      } else if (err.code === 'ECONNRESET') {
+        return session.text(`${prefix}.request-failed`, [err.code])
       } else if (err.code) {
         return session.text(`${prefix}.request-failed`, [err.code])
-      } 
-    }    
+      }
+    }
     logger.error(err)
     return session.text(`${prefix}.unknown-error`)
   }
+
+  function generateAge(): number {
+    // stddev = 20
+    const mean = 50, lowerBound = 8, upperBound = 60, avg = 20;
+    const probabilities = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 17, 18, 18, 18, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 16, 16, 15, 14, 14, 13, 13, 12, 11, 11, 10, 10, 9, 9, 8, 7, 7, 6, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1];
+    let age = generateRandomNumber(probabilities);
+    age =
+      age < mean
+        ? (age) * (avg - lowerBound) / mean + lowerBound
+        : (age - mean) * (upperBound - avg) / mean + avg;
+
+    age = Math.round(age);
+    return age;
+  }
+
+  function generateRandomNumber(probabilities: number[]): number {
+    const n = probabilities.length;
+    const cdf = new Array(n);
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      sum += probabilities[i];
+      cdf[i] = sum;
+    }
+    const rnd = Math.random() * sum;
+    for (let i = 0; i < n; i++) {
+      if (rnd < cdf[i]) {
+        return i;
+      }
+    }
+    return n - 1;
+  }
+
 }
 
