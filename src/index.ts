@@ -19,6 +19,20 @@ export const usage = `
 
 const logger = new Logger(name)
 
+declare module 'koishi' {
+  interface Tables {
+    girlfriends: Girlfriends
+  }
+}
+
+export interface Girlfriends {
+  id: number;
+  uid: string;
+  currentGirlfriend?: JSON;
+  newGirlfriend?: JSON;
+  other?: string;
+}
+
 export function apply(ctx: Context, config: Config) {
   ctx.i18n.define('zh', require('./locales/zh'))
   ctx.command(`gptsd <prompts:text>`)
@@ -29,10 +43,74 @@ export function apply(ctx: Context, config: Config) {
     });
   ctx.command(`gptgf <prompts:text>`)
     .alias('女友盲盒')
-    .action(async ({ session }, text) => {
-      session.send(session.text(".init"))
-      await gptgf(session, text)
-    });
+    .action(async ({ session,options  }, text) => {
+    session.send(session.text(".init"));
+    await gptgf(session, text);
+  });
+
+  ctx.command(`gptgf.save <prompts:text>`)
+    .alias('gptgf.保存')
+    .action(async ({ session,options  }, text) => {
+      try {
+        // 将结果保存到数据库中
+        await saveResultToDatabase(session, text)
+        // 发送保存成功的消息
+        session.send(session.text(".saved"))
+      } catch (err) {
+        // 如果执行内部指令发生错误，则发送错误消息
+        session.send(session.text('.saved-error', [err.message]))
+      }
+  });
+
+  ctx.command(`gptgf.show`)
+    .alias('gptgf.女友信息')
+    .action(async ({ session }) => {
+      const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
+    
+      if (existingData.length > 0) {
+        const currentGirlfriend = existingData[0].currentGirlfriend;
+        if (currentGirlfriend) {
+          // 如果存在女友信息，则发送女友信息给用户
+          await formatData(session,currentGirlfriend); 
+        } else {
+          // 如果当前女友信息为空，则发送消息告诉用户还没有女友信息
+          session.send(session.text('.noCurrentGirlfriend'))
+        }
+      } else {
+        // 如果不存在女友信息，则发送消息告诉用户还没有女友信息
+        session.send(session.text('.noCurrentGirlfriend'))
+      }
+  });
+
+  ctx.command('gptgf.draw')
+  .alias('gptgf.康康女友')
+  .action(async ({ session }) => {
+    const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
+    
+      if (existingData.length > 0) {
+        const currentGirlfriend = existingData[0].currentGirlfriend;
+        if (currentGirlfriend) {
+          // 如果存在女友信息，则发送女友信息给用户
+          await drawImage(session, currentGirlfriend);
+        } else {
+          // 如果当前女友信息为空，则发送消息告诉用户还没有女友信息
+          session.send(session.text('.noCurrentGirlfriend'))
+        }
+      } else {
+        // 如果不存在女友信息，则发送消息告诉用户还没有女友信息
+        session.send(session.text('.noCurrentGirlfriend'))
+      }
+  });
+
+  ctx.model.extend('girlfriends', {
+    id: 'unsigned',
+    uid: 'string',
+    currentGirlfriend: 'json',
+    newGirlfriend:'json',
+    other: 'string',
+  }, {
+    autoInc: true,
+  });
 
   async function gptsd(session: Session, text: string,) {
     if (!text?.trim())
@@ -45,16 +123,49 @@ export function apply(ctx: Context, config: Config) {
     await session.execute(`${config.command} ${sdPrompt}`);
   }
 
+  async function saveResultToDatabase(session: Session, text: string) {
+    const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
+  
+    if (existingData.length > 0) {
+      // 如果已经存在记录，将新女友信息存储到当前女友信息中
+      const currentGirlfriend = existingData[0].newGirlfriend;
+      await ctx.database.set('girlfriends', { uid: session.uid }, { currentGirlfriend: currentGirlfriend });
+    } else {
+      // 如果不存在记录，抛出一个错误信息
+      throw new Error('You don\'t have girlfriend yet');
+    }
+  }
+
   async function gptgf(session: Session, text: string,) {
+    
     const types = ["Japanese anime", "Chinese", "abnormal anime"];
     // const types = ["loli"];
     const type = types[Math.floor(Math.random() * types.length)];
     const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
-    // console.log(prompt);
+    console.log(prompt);
     const response = await ask(session, prompt);
-    // console.log(response);
+    console.log(response);
     const data = JSON.parse(response.match(/{.*}/s)[0]);
 
+    const existingData = await ctx.database.get('girlfriends', { uid:session.uid });
+
+    if (existingData.length > 0) {
+      await ctx.database.set('girlfriends', { uid:session.uid }, { newGirlfriend: data });
+    } else {
+      await ctx.database.create('girlfriends', {
+        uid:session.uid,
+        currentGirlfriend: undefined, // 现任女友信息为空
+        newGirlfriend: data,
+        other: undefined,
+      });
+    }
+
+    await formatData(session,data);    
+    
+    await drawImage(session, data);
+  }
+
+  async function formatData(session: Session, data: any) {
     const translations = {
       "age": "年龄",
       "hair_color": "发色",
@@ -92,16 +203,6 @@ export function apply(ctx: Context, config: Config) {
       h('quote', { id: session.messageId }) +
       session.text('.newFriend', { age: age, output: output })
     );
-    
-    //画图
-    text = data.appearance + " " + data.hobbies + " "+ session.text(".female") + data.career
-    // console.log(text)
-    const promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
-    // console.log(promptTag)
-    let sdPrompt = await ask(session, promptTag);
-    sdPrompt = sdPrompt.replace(/#/g, "");
-    // console.log(sdPrompt)
-    await session.execute(`${config.command} ${sdPrompt}`);
   }
 
 
@@ -115,6 +216,17 @@ export function apply(ctx: Context, config: Config) {
         handleError(session, err);
         return "Hello, World?";
       });
+  }
+
+  async function drawImage(session: Session, data: any) {
+    let text = data.appearance + " " + data.hobbies + " "+ session.text(".female") + data.career+" ";
+    text+=` 发色:${data.hair_color} 瞳色:${data.eye_color}`;
+    const promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
+    console.log(promptTag) 
+    let sdPrompt = await ask(session, promptTag);
+    sdPrompt = sdPrompt.replace(/#/g, ",");
+    console.log(sdPrompt) 
+    await session.execute(`${config.command} ${sdPrompt}`);
   }
 
   function handleError(session: Session, err: Error) {
