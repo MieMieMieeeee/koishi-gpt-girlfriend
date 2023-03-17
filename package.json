@@ -1,7 +1,7 @@
 {
   "name": "@miemiemie/koishi-plugin-gpt-girlfriend",
   "description": "随机抽个女友/根据要求自动生成提示词进行约稿",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "author": "miemiemie <ndschen123@gmail.com>",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

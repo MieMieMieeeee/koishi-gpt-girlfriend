@@ -8,6 +8,8 @@ commands:
     messages:
       prompt:
         baseTag: 为以下内容写成几个英文的tag供NovelAI使用，请将每个英文tag之间用逗号分割，适当美化使得tag数量不少于7个，不要输出其他文字,结尾不需要标点：“{text}”
+        exampleTag: 请参考例子“{text}”
+        clothTag: 为以下内容写成几个英文的tag供NovelAI使用，请将每个英文tag之间用逗号分割，关注衣服的变化，不要输出其他文字和中文：“{text}”
         base2: 为以下内容写一串英文的novelai的prompt，适当美化使得数量不少于7个，每个prompt用逗号分割，不要输出其他文字,结尾不需要标点：/n“{text}”
       unknown-error: 发生未知错误。
       response-error: 发生未知错误 ({0})。
@@ -19,10 +21,11 @@ commands:
     usage: |-
       以下为实例：
       ｛指令｝:｛用途｝
-      女友盲盒:随机抽女友
-      女友盲盒.保存:将抽到的女友保存
-      女友盲盒.女友信息:查看你保存的女友
-      女友盲盒.康康女友:康康你的女友
+      女友盲盒         : 随机抽女友
+      女友盲盒.保存女友 : 将抽到的女友保存
+      女友盲盒.女友信息 : 查看你保存的女友
+      女友盲盒.康康女友 : 康康你保存的的女友
+      女友盲盒.女友暖暖 : 给你的女友换个衣服
 
     messages:
       newFriend: |-
@@ -36,11 +39,16 @@ commands:
           <>努力搬运盲盒中...</>
           <>正在提交盲盒订单...</>
           <>派送盲盒中...</>
-        </random>.
+          <>正在派送盲盒，可以输入“help 女友盲盒”查看如何保存女友</>
+        </random>
       prompt:
         baseAniGirl: |-
           Give a JSON description of a {type} female character.
-          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),appearance,hobbies,background.
+          Contain following key in english: age,hair_color,hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
+          value translate into Simplified Chinese.Like "hair_color": "黑色"
+        baseAniGirlTest: |-
+          Give a JSON description of a {type} female character.
+          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,hobbies,background.
           value translate into Simplified Chinese.Like "hair_color": "黑色"
     save:
       messages:
@@ -61,3 +69,60 @@ commands:
         noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
         female: 女
       description: 康康你的女友
+    clothes:
+      messages:
+        noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
+        female: 女
+        clothes:
+          - "连衣裙"
+          - "牛仔裤套装"
+          - "西装"
+          - "T恤和短裤"
+          - "长裙"
+          - "背心和短裤"
+          - "运动套装"
+          - "针织衫和长裤"
+          - "迷你裙"
+          - "卫衣和运动裤"
+          - "中长裙"
+          - "运动背心和运动裤"
+          - "牛仔夹克和牛仔裤"
+          - "连体裤"
+          - "背心和迷你裙"
+          - "运动外套和运动裤"
+          - "连衣裤"
+          - "短袖衬衫和长裤"
+          - "短裙"
+          - "背心和短裙"
+          - "运动上衣和运动裤"
+          - "吊带裙"
+          - "短袖T恤和牛仔裤"
+          - "短裤"
+          - "针织衫和短裙"
+          - "运动背心和短裤"
+          - "连衣短裤"
+          - "长袖衬衫和长裤"
+          - "迷你半身裙"
+          - "背心和连衣裤"
+          - "运动外套和短裤"
+          - "连体裙"
+          - "短袖衬衫和短裤"
+          - "中长半身裙"
+          - "背心和长裤"
+          - "运动上衣和短裤"
+          - "吊带连衣裙"
+          - "长袖T恤和牛仔裤"
+          - "长裤"
+          - "针织衫和长袖裙"
+          - "运动背心和长裤"
+          - "吊带长裤"
+          - "长袖衬衫和短裙"
+          - "阔腿裤套装"
+          - "背心和阔腿裤"
+          - "运动外套和长裤"
+          - "连体长裤"
+          - "短袖T恤和短裙"
+          - "长款连帽卫衣和运动裤"
+          - "长袖连衣裙"
+
+      description: 给你的女友随机换装

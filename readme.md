@@ -9,6 +9,8 @@
 ## 指令：
 - gptgf 女友盲盒  
   - 不知道说什么？那就随机抽个！
+  - 全部功能请通过以下指令查看
+    - help 女友盲盒
 
 ![demo](https://raw.githubusercontent.com/MieMieMieeeee/koishi-gpt-girlfriend/main/img/demo.png)
 - gptsd gpt约稿 智能约稿
@@ -23,3 +25,4 @@
 - 0.1.5 gptgf指令下，群聊回复时引用对话
 - 0.1.6 增加了一些女友的种类（待反馈），添加年龄算法
 - 0.1.7 算法优化
+- 0.2.0 增加女友保存,换装功能（实验性，之后功能可能会有所调整）
