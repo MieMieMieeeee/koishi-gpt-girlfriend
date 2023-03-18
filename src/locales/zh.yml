@@ -16,7 +16,6 @@ commands:
       request-failed: 请求失败 ({0})，请稍后重试。
       request-timeout: 请求超时。
   gptgf:
-    
     description: 随机女友
     usage: |-
       以下为实例：
@@ -26,14 +25,13 @@ commands:
       女友盲盒.女友信息 : 查看你保存的女友
       女友盲盒.康康女友 : 康康你保存的的女友
       女友盲盒.女友暖暖 : 给你的女友换个衣服
+      女友盲盒.女友约会 : 约会吧（beta）
 
     messages:
       newFriend: |-
         恭喜你，你今天交到了一个{age}的美丽的女友！
         {output}
-      age: 岁
-      ageUnkown: 年龄不详
-      female: 女
+      
       init: |-
         <random>
           <>努力搬运盲盒中...</>
@@ -51,78 +49,52 @@ commands:
           Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,hobbies,background.
           value translate into Simplified Chinese.Like "hair_color": "黑色"
     save:
+      shortcuts:
+        save: 保存女友
       messages:
         saved: 你的女友已经成功保存啦！
         saved-error: 保存时发生未知错误({0})。
       description: 保存生成的女友
     show:
+      shortcuts:
+        show: 女友信息|查询女友
       messages:
         newFriend: |-
           你的现任女友:
           年龄: {age}
-          {output}
-        age: 岁
-        noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
+          {output}        
       description: 可公开的女友情报
     draw:
+      shortcuts:
+        draw: 康康女友
       messages:
-        noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
-        female: 女
       description: 康康你的女友
     clothes:
+      shortcuts:
+        clothes: 女友暖暖
+      messages:
+      description: 给你的女友随机换装
+    date:
+      shortcuts:
+        date: 女友约会
+      messages:
+        chooseOptions: 请在60秒内选择：（只需要输入数字）
+        retry: 糟糕，看起来我被您的输入搞晕了，请您再试一次，只输入范围内的数字哦。
+        retryStop: 由于您的暗号多次错误，本次约会已中止。
+        retryTimeout: 太磨叽惹！女友和别人去约会了。
+        dateStory: |-
+          {dateStory}
+          当前好感度：{favorability}({favorabilityScore})
+
+        prompt:
+          baseDateOptions: Only response with json.According to my girlfriend's info, generate 4 date plans in Simplified Chinese, including 2 options that she won't like. Json format
+          baseDateStory: |-
+            按以下内容写一段不超过200字的与女友约会的故事。并解释为什么好感度{favorScore}。请用第二人称
+            {selectedPlan}
+    common:
       messages:
         noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
+        noCurrentGirlfriendSaved: 请先保存你的女友！
         female: 女
-        clothes:
-          - "连衣裙"
-          - "牛仔裤套装"
-          - "西装"
-          - "T恤和短裤"
-          - "长裙"
-          - "背心和短裤"
-          - "运动套装"
-          - "针织衫和长裤"
-          - "迷你裙"
-          - "卫衣和运动裤"
-          - "中长裙"
-          - "运动背心和运动裤"
-          - "牛仔夹克和牛仔裤"
-          - "连体裤"
-          - "背心和迷你裙"
-          - "运动外套和运动裤"
-          - "连衣裤"
-          - "短袖衬衫和长裤"
-          - "短裙"
-          - "背心和短裙"
-          - "运动上衣和运动裤"
-          - "吊带裙"
-          - "短袖T恤和牛仔裤"
-          - "短裤"
-          - "针织衫和短裙"
-          - "运动背心和短裤"
-          - "连衣短裤"
-          - "长袖衬衫和长裤"
-          - "迷你半身裙"
-          - "背心和连衣裤"
-          - "运动外套和短裤"
-          - "连体裙"
-          - "短袖衬衫和短裤"
-          - "中长半身裙"
-          - "背心和长裤"
-          - "运动上衣和短裤"
-          - "吊带连衣裙"
-          - "长袖T恤和牛仔裤"
-          - "长裤"
-          - "针织衫和长袖裙"
-          - "运动背心和长裤"
-          - "吊带长裤"
-          - "长袖衬衫和短裙"
-          - "阔腿裤套装"
-          - "背心和阔腿裤"
-          - "运动外套和长裤"
-          - "连体长裤"
-          - "短袖T恤和短裙"
-          - "长款连帽卫衣和运动裤"
-          - "长袖连衣裙"
-
-      description: 给你的女友随机换装
+        age: 岁
+        ageUnkown: 年龄不详
