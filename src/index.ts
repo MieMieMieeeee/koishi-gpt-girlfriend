@@ -172,7 +172,6 @@ export function apply(ctx: Context, config: Config) {
           );
           // 好感度
           if (favorability >= 100) {
-            const dataFeedbackReq = session.text(`.prompt.baseDateFeedback`);
             session.send(
               h('quote', { id: session.messageId }) +
               session.text('.favorability100')

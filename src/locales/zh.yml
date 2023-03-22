@@ -85,14 +85,13 @@ commands:
         dateStory: |-
           {dateStory}
           当前好感度：{favorability}({favorabilityScore})
-        dateStory100: 恭喜，你们的好感度突破了100！你的女友刚刚分享了一张照片。
+        favorability100: 咦，你的女友刚刚给你分享了一张照片。
 
         prompt:
           baseDateOptions: Only response with json.According to my girlfriend's info, generate 4 date plans in Simplified Chinese, including 2 options that she won't like. Json format
           baseDateStory: |-
             按以下内容写一段不超过200字的与女友约会的故事。并解释为什么好感度{favorScore}。请用第二人称
             {selectedPlan}
-          baseDateFeedback: 
     common:
       messages:
         noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！
