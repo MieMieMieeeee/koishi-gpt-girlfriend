@@ -28,6 +28,7 @@ declare module 'koishi' {
 interface Girlfriend {
   age?: string;
   hair_color?: string;
+  expect_hair_dye_color?: string;
   hair_style?: string;
   eye_color?: string;
   speciality?: string;
@@ -43,7 +44,6 @@ interface Girlfriend {
   background?: string;
   tag?: string;
   favorability?: number;
-  // other properties...
 }
 
 export interface Girlfriends {
@@ -77,7 +77,6 @@ export function apply(ctx: Context, config: Config) {
       try {
         // 将结果保存到数据库中
         await saveResultToDatabase(session, text)
-        // 发送保存成功的消息
         session.send(session.text(".saved"))
       } catch (err) {
         // 如果执行内部指令发生错误，则发送错误消息
@@ -105,7 +104,6 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-  // 添加一个指令来更换女友服装
   ctx.command(`gptgf.clothes`)
     .alias('gptgf.女友暖暖')
     .shortcut('clothes', { i18n: true, fuzzy: true })
@@ -114,7 +112,7 @@ export function apply(ctx: Context, config: Config) {
       if (girlfriend) {
         try {
           // 随机选择一种服饰
-          const clothes = ["连衣裙", "牛仔裤套装", "西装", "T恤和短裤", "长裙", "背心和短裤", "运动套装", "针织衫和长裤", "迷你裙", "卫衣和运动裤", "中长裙", "运动背心和运动裤", "牛仔夹克和牛仔裤", "连体裤", "背心和迷你裙", "运动外套和运动裤", "连衣裤", "短袖衬衫和长裤", "短裙", "背心和短裙", "运动上衣和运动裤", "吊带裙", "短袖T恤和牛仔裤", "短裤", "针织衫和短裙", "运动背心和短裤", "连衣短裤", "长袖衬衫和长裤", "迷你半身裙", "背心和连衣裤", "运动外套和短裤", "连体裙", "短袖衬衫和短裤", "中长半身裙", "背心和长裤", "运动上衣和短裤", "吊带连衣裙", "长袖T恤和牛仔裤", "长裤", "针织衫和长袖裙", "运动背心和长裤", "吊带长裤", "长袖衬衫和短裙", "阔腿裤套装", "背心和阔腿裤", "运动外套和长裤", "连体长裤", "短袖T恤和短裙", "长款连帽卫衣和运动裤", "长袖连衣裙", "民族风连衣裙", "白衬衫和铅笔裙", "高领毛衣和阔腿裤", "休闲运动装", "宽松长裤", "蕾丝连衣裙", "背心和热裤", "学院风套装", "灯笼袖连衣裙", "运动套装", "条纹T恤和牛仔裤", "低胸吊带上衣和短裙", "紧身背心和瑜伽裤", "露脐上衣和迷你裙", "衬衫和长裤", "连衣长裤", "泳装", "雪纺连衣裙", "西装外套和裤子", "军装", "毛衣和短裙", "小吊带和短裙", "针织背心和阔腿裤", "舞蹈服", "包臀裙", "女仆装", "紧身连衣裤", "格子衬衫和牛仔裤", "蝙蝠袖连衣裙", "职业套装", "铅笔裤", "吊带连体裤", "防晒服", "丝绸连衣裙", "皮衣和紧身裤", "短款卫衣和短裤", "蕾丝上衣和长裙", "冬季套装", "吊带连衣裤", "背心和阔腿裤", "毛衣和长裤", "旗袍", "抹胸上衣和短裙", "牛仔短裤和T恤", "棒球服", "皮草大衣和长裤", "裙子套装", "旗袍裤", "棉麻连衣裙"];
+          const clothes = ["连衣裙", "牛仔裤套装", "西装", "T恤和短裤", "背心和短裤", "运动套装", "针织衫和长裤", "迷你裙", "卫衣和运动裤", "运动背心和运动裤", "牛仔夹克和牛仔裤", "连体裤", "运动外套和运动裤", "连衣裤", "短袖衬衫和长裤", "背心和短裙", "吊带裙", "针织衫和短裙", "运动背心和短裤", "连衣短裤", "长袖衬衫和长裤", "迷你半身裙", "背心和连衣裤", "运动外套和短裤", "连体裙", "短袖衬衫和短裤", "中长半身裙", "背心和长裤", "运动上衣和短裤", "吊带连衣裙", "针织衫和长袖裙", "运动背心和长裤", "吊带长裤", "长袖衬衫和短裙", "阔腿裤套装", "连体长裤", "短袖T恤和短裙", "长款连帽卫衣和运动裤", "长袖连衣裙", "民族风连衣裙", "白衬衫和铅笔裙", "高领毛衣和阔腿裤", "休闲运动装", "宽松长裤", "蕾丝连衣裙", "背心和热裤", "学院风套装", "灯笼袖连衣裙", "运动套装", "条纹T恤和牛仔裤", "低胸吊带上衣和短裙", "紧身背心和瑜伽裤", "露脐上衣和迷你裙", "衬衫和长裤", "连衣长裤", "泳装", "雪纺连衣裙", "西装外套和裤子", "军装", "毛衣和短裙", "小吊带和短裙", "针织背心和阔腿裤", "舞蹈服", "包臀裙", "女仆装", "紧身连衣裤", "格子衬衫和牛仔裤", "蝙蝠袖连衣裙", "职业套装", "铅笔裤", "吊带连体裤", "防晒服", "丝绸连衣裙", "皮衣和紧身裤", "短款卫衣和短裤", "蕾丝上衣和长裙", "冬季套装", "吊带连衣裤", "背心和阔腿裤", "毛衣和长裤", "旗袍", "抹胸上衣和短裙", "牛仔短裤和T恤", "棒球服", "皮草大衣和长裤", "裙子套装", "旗袍裤", "棉麻连衣裙"];
           const clothType = clothes[Math.floor(Math.random() * clothes.length)];
           // 生成新的女友信息
           const newGirlfriend = { ...girlfriend, cloth: clothType };
@@ -148,10 +146,10 @@ export function apply(ctx: Context, config: Config) {
 
           // 保存每个选项和活动名称的数组
           const activityLines = optionsResJson.plans.map((plan, index) => {
-            return `${letters[index]}. ${plan.plan}`;
+            const prefix = /^\d/.test(plan.plan) ? '' : `${letters[index]}. `;
+            return `${prefix}${plan.plan}`;
           });
 
-          // 将数组中的字符串用换行符连接成一个字符串
           const outputString = activityLines.join('\n');
           session.send(
             h('quote', { id: session.messageId }) +
@@ -172,6 +170,23 @@ export function apply(ctx: Context, config: Config) {
             h('quote', { id: session.messageId }) +
             session.text(`.dateStory`, { dateStory: dateStoryRes, favorability: favorability.toString(), favorabilityScore: favorScoreString })
           );
+          // 好感度
+          if (favorability >= 100) {
+            const dataFeedbackReq = session.text(`.prompt.baseDateFeedback`);
+            session.send(
+              h('quote', { id: session.messageId }) +
+              session.text('.favorability100')
+            );
+            try {
+              const clothes = ["\u6BD4\u57FA\u5C3C"];
+              const clothType = clothes[Math.floor(Math.random() * clothes.length)];
+              // 生成新的女友信息
+              const newGirlfriend = { ...girlfriend, cloth: clothType };
+              await drawImage(session, newGirlfriend, true);
+            } catch (err) {
+              session.send(err.message);
+            }
+          }
 
         } catch (err) {
           session.send(err.message);
@@ -179,7 +194,7 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-  async function updateFavorability(session, favorScore) {
+  async function updateFavorability(session, favorScore):Promise<number> {
     const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
     const girlfriend = existingData[0].currentGirlfriend;
     girlfriend.favorability ??= 50;
@@ -266,11 +281,12 @@ export function apply(ctx: Context, config: Config) {
   async function gptgf(session: Session, text: string,) {
 
     const types = ["Japanese anime", "Chinese", "abnormal anime"];
+    // const types = ["Japanese anime", "abnormal anime"];
     // const types = ["loli"];
     const type = types[Math.floor(Math.random() * types.length)];
     const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
     // console.log(prompt);
-    const response = await ask(session, prompt);
+    const response = (await ask(session, prompt)).replace(/（可选）/g, '');
     // console.log(response);
     const data = JSON.parse(response.match(/{.*?}/s)[0]);
 
@@ -352,7 +368,8 @@ export function apply(ctx: Context, config: Config) {
 
   async function drawImage(session: Session, data: any, useTag = false) {
     let text = data.appearance + " " + data.hobbies + " " + session.text(gptgfCmnMsgs + ".female") + data.career + " ";
-    text += ` ${data.hair_color}${data.hair_style} ${data.eye_color}eye ${data.body_shape} ${data.cloth}`;
+    const hairColor = (data.expect_hair_dye_color && data.expect_hair_dye_color !== 'null' && data.expect_hair_dye_color !== 'undefined' && data.expect_hair_dye_color !== '暂无' && data.expect_hair_dye_color !== '无') ? data.expect_hair_dye_color : data.hair_color ?? '';
+    text += ` ${hairColor}hair ${data.hair_style} ${data.eye_color}eye ${data.body_shape} ${data.cloth}`;
     let promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
     if (useTag && 'tag' in data) {
       promptTag = session.text('commands.gptsd.messages.prompt.exampleTag', { text: data.tag.replace(/\n/g, "") })
