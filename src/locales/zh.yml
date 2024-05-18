@@ -43,7 +43,8 @@ commands:
         baseAniGirl: |-
           Give a JSON description of a {type} female character.
           Contain following key in english: age,hair_color,expect_hair_dye_color(option),hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
-          value translate into Simplified Chinese.Like "hair_color": "彩色"
+          The value is the info of the character not the translation of the key.
+          Translate value into Simplified Chinese. Like "hair_color": "彩色"
         baseAniGirlTest: |-
           Give a JSON description of a {type} female character.
           Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,hobbies,background.
@@ -88,7 +89,7 @@ commands:
         favorability100: 咦，你的女友刚刚给你分享了一张照片。
 
         prompt:
-          baseDateOptions: Only response with json.According to my girlfriend's info, generate 4 date plans in Simplified Chinese, including 2 options that she won't like. Json format
+          baseDateOptions: According to my girlfriend's info, generate 4 date plans in Simplified Chinese, including 2 options that she won't like. Give a Json description with format
           baseDateStory: |-
             按以下内容写一段不超过200字的与女友约会的故事。并解释为什么好感度{favorScore}。请用第二人称
             {selectedPlan}

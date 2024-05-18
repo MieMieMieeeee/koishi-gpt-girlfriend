@@ -205,7 +205,7 @@ export function apply(ctx: Context, config: Config) {
 
   function generateFavorability(): number {
     const keys = Array.from({ length: 21 }, (_, i) => i - 10); // 生成包含-10到10的整数的数组
-    const values = [6, 6, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6, 7, 7, 7];
+    const values = [6, 6, 6, 5, 4, 3, 2, 1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10];
     const weights: Record<number, number> = {};
     for (let i = 0; i < keys.length; i++) {
       weights[keys[i]] = values[i];
@@ -257,7 +257,8 @@ export function apply(ctx: Context, config: Config) {
     if (!text?.trim())
       return session.execute(`help ${name}`);
     const prompt = session.text('.prompt.baseTag', { text });
-    const sdPrompt = await ask(session, prompt);
+    const regex = /[^a-zA-Z0-9,\s]/g;
+    const sdPrompt = (await ask(session, prompt)).replace(/#/g, ",").replace(regex, '');
     if (config.tag) {
       session.send(`tag： ${sdPrompt}`);
     }
@@ -284,9 +285,9 @@ export function apply(ctx: Context, config: Config) {
     // const types = ["loli"];
     const type = types[Math.floor(Math.random() * types.length)];
     const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
-    // console.log(prompt);
+    console.log(prompt);
     const response = (await ask(session, prompt)).replace(/（可选）/g, '');
-    // console.log(response);
+    console.log(response);
     const data = JSON.parse(response.match(/{.*?}/s)[0]);
 
     const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
