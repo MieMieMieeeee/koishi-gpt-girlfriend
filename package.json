@@ -1,9 +1,9 @@
 {
   "name": "@miemiemie/koishi-plugin-gpt-girlfriend",
   "description": "随机抽个女友/根据要求自动生成提示词进行约稿",
-  "version": "0.2.7",
+  "version": "0.3.2",
   "author": "miemiemie <ndschen123@gmail.com>",
-  "contributors": [                       
+  "contributors": [
     "cao <caoyutong@hotmail.com>"
   ],
   "main": "lib/index.js",
@@ -18,7 +18,6 @@
     "url": "git+https://github.com/MieMieMieeeee/koishi-gpt-girlfriend.git"
   },
   "homepage": "https://github.com/MieMieMieeeee/koishi-gpt-girlfriend",
-  "scripts": {},
   "keywords": [
     "chatbot",
     "koishi",
@@ -32,12 +31,15 @@
         "database"
       ]
     },
-    "locales": ["zh"]
+    "locales": [
+      "zh"
+    ]
   },
   "peerDependencies": {
     "koishi": "^4.11.9"
   },
   "devDependencies": {
+    "@mirror_cy/gpt": "^0.0.1",
     "@types/node": "^18.11.18",
     "koishi": "^4.11.9"
   }
