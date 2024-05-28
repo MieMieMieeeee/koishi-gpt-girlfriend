@@ -11,6 +11,8 @@ commands:
         exampleTag: 请参考例子“{text}”
         clothTag: 为以下内容写成几个英文的tag供NovelAI使用，请将每个英文tag之间用逗号分割，关注衣服的变化，不要输出其他文字和中文：“{text}”
         base2: 为以下内容写一串英文的novelai的prompt，适当美化使得数量不少于7个，每个prompt用逗号分割，不要输出其他文字,结尾不需要标点：/n“{text}”
+        exampleTag2: 请基于这些词“{text}”
+        duelResultTag: /#/#目的：根据内容添加几个英文的tag供NovelAI使用/#/#要求：这是一个决斗场景，着重描述使用战斗技能时的动作,至少用2个tag/#/#输出格式：请将每个英文tag之间用逗号分割，适当美化使得tag数量不少于7个，不要输出其他文字,结尾不需要标点/#/#内容：“{text}”
       unknown-error: 发生未知错误。
       response-error: 发生未知错误 ({0})。
       request-failed: 请求失败 ({0})，请稍后重试。

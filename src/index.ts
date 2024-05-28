@@ -1,15 +1,18 @@
 import { Context, Logger, Quester, Session, Command, h, Random } from 'koishi'
 import { Config } from './config'
 import { } from '@mirror_cy/gpt'
+import { gptgfCmnMsgs, getCurrentGirlfriend, handleError, generateFavorability, generateAge, ask, updateFavorability, drawImage } from './utilities'
+import { checkGlobalBattleStatus, startDuel } from './duel'
+import { MSG_DELAY } from './utilities'
 import { log } from 'console'
-
 
 export const name = 'gptsd'
 
 export * from './config'
+export * from './interfaces'
 
 export const inject = {
-  required: ['gpt','database'],
+  required: ['gpt', 'database'],
 }
 
 export const usage = `
@@ -23,56 +26,7 @@ export const usage = `
 - gpt服务（需额外安装）推荐rr-gpt
 - 画图插件（需额外安装）推荐rryth或者novelai`
 
-const logger = new Logger(name)
-
-const MAX_FAVORABILITY = 300;
-const RESPONSE_TIMEOUT = 20000;
-const MSG_DELAY = 1400;
-
-declare module 'koishi' {
-  interface Tables {
-    girlfriends: Girlfriends;
-    girlfriends_global: GirlfriendsGlobal;
-  }
-}
-
-interface Girlfriend {
-  age?: string;
-  hair_color?: string;
-  expect_hair_dye_color?: string;
-  hair_style?: string;
-  eye_color?: string;
-  speciality?: string;
-  career?: string;
-  personality?: string;
-  height?: string;
-  weight?: string;
-  cloth?: string;
-  appearance?: string;
-  face_shape?: string;
-  body_shape?: string;
-  hobbies?: string;
-  background?: string;
-  tag?: string;
-  favorability?: number;
-}
-
-export interface Girlfriends {
-  id: number;
-  uid: string;
-  currentGirlfriend?: Girlfriend;
-  newGirlfriend?: JSON;
-  battle?: {
-    hp: number;
-    skills?: any[];
-  };
-  other?: string;
-}
-
-interface GirlfriendsGlobal {
-  id: number;
-  inBattle: boolean;
-}
+export const logger = new Logger(name)
 
 async function initGlobal(ctx: Context) {
   const existingStatus = await ctx.database.get('girlfriends_global', { id: 1 });
@@ -82,23 +36,24 @@ async function initGlobal(ctx: Context) {
 }
 
 export function apply(ctx: Context, config: Config) {
+  logger.level=config.logLevel
   ctx.model.extend('girlfriends_global', {
     id: 'integer',
     inBattle: 'boolean',
   }, {
     autoInc: true,
   });
-  
+
   initGlobal(ctx);
 
   ctx.i18n.define('zh', require('./locales/zh'))
-  const gptgfCmnMsgs = 'commands.gptgf.common.messages'
   ctx.command(`gptsd <prompts:text>`)
     .alias('gpt约稿')
     .alias('智能约稿')
     .action(async ({ session }, text) => {
       await gptsd(session, text)
     });
+
   ctx.command(`gptgf <prompts:text>`)
     .alias('女友盲盒')
     .action(async ({ session, options }, text) => {
@@ -108,6 +63,7 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command(`gptgf.save <prompts:text>`)
     .alias('gptgf.保存女友')
+    .alias('保存女友')
     .action(async ({ session, options }, text) => {
       try {
         // 将结果保存到数据库中
@@ -121,8 +77,9 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command(`gptgf.show`)
     .alias('gptgf.女友信息')
+    .alias('女友信息')
     .action(async ({ session }) => {
-      const girlfriend = await getCurrentGirlfriend(session);
+      const girlfriend = await getCurrentGirlfriend(ctx, session);
       if (girlfriend) {
         await formatData(session, girlfriend);
       }
@@ -130,17 +87,22 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('gptgf.draw')
     .alias('gptgf.康康女友')
+    .alias('康康女友')
     .action(async ({ session }) => {
-      const girlfriend = await getCurrentGirlfriend(session);
+      const girlfriend = await getCurrentGirlfriend(ctx, session);
       if (girlfriend) {
-        await drawImage(session, girlfriend);
+        const taggedData=await drawImage(ctx,session, girlfriend);
+        if ( !('tag' in girlfriend) && taggedData.tag ) {
+          await ctx.database.set('girlfriends', { uid: session.uid }, { newGirlfriend: taggedData });
+        }
       }
     });
 
   ctx.command(`gptgf.clothes`)
     .alias('gptgf.女友暖暖')
+    .alias('女友暖暖')
     .action(async ({ session }) => {
-      const girlfriend = await getCurrentGirlfriend(session);
+      const girlfriend = await getCurrentGirlfriend(ctx, session);
       if (girlfriend) {
         try {
           // 随机选择一种服饰
@@ -149,7 +111,7 @@ export function apply(ctx: Context, config: Config) {
           // 生成新的女友信息
           const newGirlfriend = { ...girlfriend, cloth: clothType };
 
-          await drawImage(session, newGirlfriend, true);
+          await drawImage(ctx,session,newGirlfriend, true);
         } catch (err) {
           session.send(err.message);
         }
@@ -158,15 +120,16 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command(`gptgf.date`)
     .alias('gptgf.女友约会')
+    .alias('女友约会')
     .action(async ({ session }) => {
-      const girlfriend = await getCurrentGirlfriend(session);
+      const girlfriend = await getCurrentGirlfriend(ctx, session);
       if (girlfriend) {
         try {
           const format = `{plans:[{"plan":}]}`;
           let reqDateOptions = session.text(`.prompt.baseDateOptions`) + format;
           reqDateOptions += ` age:${girlfriend.age},speciality:${girlfriend.speciality},career:${girlfriend.career},personality:${girlfriend.personality},hobbies:${girlfriend.hobbies}`;
           // console.log(reqDateOptions);
-          const optionsRes = await ask(session, reqDateOptions);
+          const optionsRes = await ask(ctx, session, reqDateOptions);
           // console.log(optionsRes);
           const optionsResJson = JSON.parse(optionsRes.match(/{.*}/)[0]);
 
@@ -194,9 +157,9 @@ export function apply(ctx: Context, config: Config) {
           const favorScoreString = sign + Math.abs(favorScore).toString();
           const dataStoryReq = session.text(`.prompt.baseDateStory`, { favorScore: favorScoreString, selectedPlan });
           // console.log(dataStoryReq);
-          const dateStoryRes = await ask(session, dataStoryReq);
+          const dateStoryRes = await ask(ctx, session, dataStoryReq);
           // console.log(dateStoryRes);
-          const favorability = await updateFavorability(session, favorScore);
+          const favorability = await updateFavorability(ctx, session, favorScore);
           session.send(
             h('quote', { id: session.messageId }) +
             session.text(`.dateStory`, { dateStory: dateStoryRes, favorability: favorability.toString(), favorabilityScore: favorScoreString })
@@ -212,7 +175,7 @@ export function apply(ctx: Context, config: Config) {
               const clothType = clothes[Math.floor(Math.random() * clothes.length)];
               // 生成新的女友信息
               const newGirlfriend = { ...girlfriend, cloth: clothType };
-              await drawImage(session, newGirlfriend, true);
+              await drawImage(ctx,session, newGirlfriend, true);
             } catch (err) {
               session.send(err.message);
             }
@@ -223,239 +186,76 @@ export function apply(ctx: Context, config: Config) {
         }
       }
     });
-  
+
   ctx.command('gptgf.duel <targetUser:text>')
-  .alias('gptgf.女友决斗')
-  .action(async ({ session }, targetUser) => {
-    logger.debug('targetUser',targetUser)
-    const match = targetUser.match(/id="(\d+)" name="(.+?)"/);
-    if (!match) {
-      session.send('请 @ 一个玩家来决斗。');
-      return;
-    }
-    const opponentId = match[1];
-    const opponentName = match[2];
-    const opponentUid = `${session.platform}:${opponentId}`;
-    logger.debug('opponentUid',opponentUid)
-    logger.debug('opponentName',opponentName)
-    logger.debug('session',session.user)
-    logger.debug('session',session.event)
-    logger.debug('session',session.channel)
+    .alias('gptgf.女友决斗')
+    .alias('女友决斗')
+    .action(async ({ session }, targetUser) => {
+      logger.debug('targetUser', targetUser)
+      if (!targetUser) {
+        await session.send('请 @ 一个玩家来决斗。');
+        return;
+      }
+      const match = targetUser.match(/id="(\d+)" name="(.+?)"/);
+      if (!match) {
+        await session.send('目标玩家格式不正确，请重新 @ 一个玩家。');
+        return;
+      }
+      
+      const opponentId = match[1];
+      const opponentName = match[2];
+      const opponentUid = `${session.platform}:${opponentId}`;
 
-    let isGlobalInBattle = await checkGlobalBattleStatus(ctx);
-    if (isGlobalInBattle) {
-      await session.sendQueued('当前已有一场决斗进行中，请稍后再试。',MSG_DELAY);
-      return;
-    }
+      if (opponentUid == session.uid) {
+        await session.send('请勿左脚踩右脚');
+        return;
+      }
 
-    const playerGirlfriend = await getCurrentGirlfriend(session);
+      let isGlobalInBattle = await checkGlobalBattleStatus(ctx);
+      if (isGlobalInBattle) {
+        await session.sendQueued('当前已有一场决斗进行中，请稍后再试。', MSG_DELAY);
+        return;
+      }
 
-    if (!playerGirlfriend) {
-      return;
-    }
+      const playerGirlfriend = await getCurrentGirlfriend(ctx, session);
+      if (!playerGirlfriend) {
+        return;
+      }
 
-    const opponentGirlfriend = await getCurrentGirlfriend(session,opponentUid,opponentName);
-    
-    if (!opponentGirlfriend) {
-      session.sendQueued('双方都需要拥有女友才能进行决斗。',MSG_DELAY);
-      return;
-    }
-    // const opponentEvent= new Event
-    // const opponentSession = new Session(session.bot,session.event);
-    session.sendQueued(`${opponentName}, 你被挑战了！回复 "接受" 来接受决斗。（测试版中如遇bug请at咩咩）`,MSG_DELAY);
+      const opponentGirlfriend = await getCurrentGirlfriend(ctx, session, opponentUid, opponentName);
+      if (!opponentGirlfriend) {
+        session.sendQueued('双方都需要拥有女友才能进行决斗。', MSG_DELAY);
+        return;
+      }
+      // const opponentEvent= new Event
+      // const opponentSession = new Session(session.bot,session.event);
+      session.sendQueued(`${opponentName}, 你被挑战了！回复 "接受" 来接受决斗。（测试版中如遇bug请at咩咩）`, MSG_DELAY);
 
 
-    let opponentAgreed = false;
-    ctx.user(opponentId).once('message', async (msgSession) => {
-      if (msgSession.content === '接受') {
-        //check again
-        isGlobalInBattle = await checkGlobalBattleStatus(ctx);
-        if (await checkGlobalBattleStatus(ctx)) {
-          await session.sendQueued('当前已有一场决斗进行中，请稍后再试。',MSG_DELAY);
+      let opponentAgreed = false;
+      ctx.user(opponentId).once('message', async (msgSession) => {
+        if (msgSession.content === '接受') {
+          //check again
+          isGlobalInBattle = await checkGlobalBattleStatus(ctx);
+          if (await checkGlobalBattleStatus(ctx)) {
+            await session.sendQueued('当前已有一场决斗进行中，请稍后再试。', MSG_DELAY);
+            return;
+          }
+          opponentAgreed = true;
+          await startDuel(ctx, session, msgSession, playerGirlfriend, opponentGirlfriend);
+          return;
+        } else {
+          session.sendQueued('对方拒绝了决斗。', MSG_DELAY);
           return;
         }
-        opponentAgreed = true;
-        await startDuel(session, msgSession, playerGirlfriend, opponentGirlfriend);
-        return;
-      } else {
-        session.sendQueued('对方拒绝了决斗。',MSG_DELAY);
-        return;
-      }
+      });
+
+      // setTimeout(() => {
+      //   if (!opponentAgreed) {
+      //     session.send('对方没有在规定时间内回复。');
+      //   }
+      // }, RESPONSE_TIMEOUT);
     });
-
-    // setTimeout(() => {
-    //   if (!opponentAgreed) {
-    //     session.send('对方没有在规定时间内回复。');
-    //   }
-    // }, RESPONSE_TIMEOUT);
-  });
-
-  
-  async function startDuel(session: Session, opponentSession: Session, playerGirlfriend: Girlfriend, opponentGirlfriend: Girlfriend) {
-    try{
-      await setGlobalBattleStatus(ctx, true);
-      // 生成技能
-      const playerSkills = await generateSkills(session, playerGirlfriend);
-      const opponentSkills = await generateSkills(opponentSession, opponentGirlfriend);
-      
-      await initializeBattle(playerGirlfriend, playerSkills, session.uid);
-      await initializeBattle(opponentGirlfriend, opponentSkills, opponentSession.uid);
-
-      for (let round = 1; round <= 3; round++) {
-        await executeRound(session, opponentSession, playerSkills, opponentSkills);
-        const playerHp = await getBattleHp(session.uid);
-        const opponentHp = await getBattleHp(opponentSession.uid);
-
-        if (playerHp <= 0 || opponentHp <= 0) break;
-      }
-
-      const playerHp = await getBattleHp(session.uid);
-      const opponentHp = await getBattleHp(opponentSession.uid);
-
-      let resultMessage;
-
-      if (playerHp > opponentHp) {
-
-        const playerFavorability = await updateFavorability(session, 20);
-        const opponentFavorability = await updateFavorability(opponentSession, -20);
-      
-        resultMessage = `${session.username}赢了！女友好感度增加20，当前好感度为${playerFavorability}。\n${opponentSession.username}输了！女友好感度减少20，当前好感度为${opponentFavorability}。`;
-      } else if (playerHp < opponentHp) {
-
-        const playerFavorability = await updateFavorability(session, -20);
-        const opponentFavorability = await updateFavorability(opponentSession, 20);
-      
-        resultMessage = `${session.username}输了！女友好感度减少20，当前好感度为${playerFavorability}。\n${opponentSession.username}赢了！女友好感度增加20，当前好感度为${opponentFavorability}。`;
-      } else {
-        resultMessage = '平局！女友好感度不变。';
-      }
-      
-      await session.sendQueued(resultMessage,MSG_DELAY);
-      await setGlobalBattleStatus(ctx, false);
-    } catch(err){
-      logger.error(err)
-      await setGlobalBattleStatus(ctx, false);
-    }
-    
-  }
-
-  async function generateSkills(session: Session, girlfriend: Girlfriend) {
-    const prompt = `###目的:根据女友信息生成三个战斗技能 ###女友信息:${JSON.stringify(girlfriend)}###输出:以JSON返回技能的中文名字，不需要其他信息###输出模版：{"1": "","2": "","3": ""}`;
-    const response = await ask(session, prompt);
-    const skills = JSON.parse(response);
-    logger.debug("generateSkills:"+response)
-    return skills;
-  }
-
-  async function initializeBattle(girlfriend: Girlfriend, skills: any[], uid: string) {
-    await ctx.database.set('girlfriends', { uid }, {
-      battle: {
-        hp: 100,
-        skills: skills,
-      }
-    });
-  }
-
-  async function getValidChoice(userSession: Session, skillsList: string[]) {
-    const startTime = Date.now();
-    let choice;
-
-    while (Date.now() - startTime < RESPONSE_TIMEOUT) {
-      const timeRemaining = RESPONSE_TIMEOUT - (Date.now() - startTime);
-      logger.debug("timeRemaining:",timeRemaining)
-      choice = await userSession.prompt(timeRemaining);
-      const parsedChoice = parseInt(choice);
-      if (parsedChoice >= 1 && parsedChoice <= 3) {
-        logger.debug(userSession.username,"有效:",parsedChoice)
-        return parsedChoice-1;
-      }
-      logger.debug("无效:",parsedChoice)
-      // 无效选择不提示，继续等待
-    }
-
-    // 超时选择随机技能
-    return Random.int(0, skillsList.length - 1);
-  }
-
-  async function executeRound(session: Session, opponentSession: Session, playerSkills: object, opponentSkills: object) {
-    const playerSkillsArray = Object.values(playerSkills);
-    const opponentSkillsArray = Object.values(opponentSkills);
-    logger.debug(playerSkillsArray)
-    logger.debug(opponentSkillsArray)
-    const playerSkillsList = playerSkillsArray.map((skill, index) => `${index + 1}. ${skill}`).join('\n');
-    const opponentSkillsList = opponentSkillsArray.map((skill, index) => `${index + 1}. ${skill}`).join('\n');
-    logger.debug(playerSkillsList)
-    logger.debug(opponentSkillsList)
-    let message
-    message=`${session.username}选择你的技能:\n${playerSkillsList}`
-    message+=`\n${opponentSession.username}选择你的技能:\n${opponentSkillsList}`
-    await session.sendQueued(message,MSG_DELAY)
-    const [playerSkillIndex, opponentSkillIndex] = await Promise.all([
-      getValidChoice(session, playerSkillsArray),
-      getValidChoice(opponentSession, opponentSkillsArray)
-    ]);
-
-    const playerDamage = Random.int(0, 100);
-    const opponentDamage = Random.int(0, 100);
-
-    await updateBattleHp(session.uid, -opponentDamage);
-    await updateBattleHp(opponentSession.uid, -playerDamage);
-
-    message=`${session.username}的女友使用了技能 ${playerSkillsArray[playerSkillIndex]}，向对方造成了 ${playerDamage} 点伤害。\n`
-    message+=`${opponentSession.username}的女友使用了技能 ${opponentSkillsArray[opponentSkillIndex]}，向对方造成了 ${opponentDamage} 点伤害。\n`
-    message+=`${session.username}的女友剩余血量：${await getBattleHp(session.uid)}，${await opponentSession.username}的女友剩余血量：${await getBattleHp(opponentSession.uid)}。`
-    await session.sendQueued(message,MSG_DELAY)
-  }
-
-  async function checkGlobalBattleStatus(ctx: Context): Promise<boolean> {
-    const battleStatus = await ctx.database.get('girlfriends_global', { id: 1 });
-    return battleStatus[0].inBattle;
-  }
-  
-  async function setGlobalBattleStatus(ctx: Context, status: boolean): Promise<void> {
-    await ctx.database.set('girlfriends_global', { id: 1 }, { inBattle: status });
-  }
-
-  async function getBattleHp(uid: string) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
-    return girlfriend[0].battle.hp;
-  }
-
-  async function updateBattleHp(uid: string, change: number) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
-    const newHp = girlfriend[0].battle.hp + change;
-    await ctx.database.set('girlfriends', { uid }, {
-      battle: {
-        ...girlfriend[0].battle,
-        hp: newHp,
-      }
-    });
-    return newHp;
-  }
-
-  async function getFavorability(uid: string) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
-    return girlfriend[0].currentGirlfriend.favorability;
-  }
-  async function updateFavorability(session, favorScore):Promise<number> {
-    const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
-    const girlfriend = existingData[0].currentGirlfriend;
-    girlfriend.favorability ??= 50;
-    // 计算新的好感度，并确保不超过最大值
-    girlfriend.favorability = Math.min(girlfriend.favorability + parseInt(favorScore), MAX_FAVORABILITY);
-    await ctx.database.set('girlfriends', { uid: session.uid }, { currentGirlfriend: girlfriend });
-    return girlfriend.favorability
-  }
- 
-  function generateFavorability(): number {
-    const keys = Array.from({ length: 21 }, (_, i) => i - 10); // 生成包含-10到10的整数的数组
-    const values = [4, 4, 3, 3, 2, 2, 1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
-    const weights: Record<number, number> = {};
-    for (let i = 0; i < keys.length; i++) {
-      weights[keys[i]] = values[i];
-    }
-    return parseInt(Random.weightedPick(weights));
-  }
 
   async function getUserInput(session: Session, maxRetries = 3): Promise<string> {
     for (let i = 0; i < 3; i++) {
@@ -472,20 +272,7 @@ export function apply(ctx: Context, config: Config) {
     throw new Error(session.text('.retryStop'));
   }
 
-  async function getCurrentGirlfriend(session: Session, uid?: string, name?: string) {
-    const userUid = uid || session.uid;
-    const existingData = await ctx.database.get('girlfriends', { uid: userUid });    if (existingData.length === 0) {
-      // 如果不存在记录，抛出一个错误信息
-      session.send((name ? `${name}: ` : '') + session.text(gptgfCmnMsgs + '.noCurrentGirlfriend'))
-      return null
-    }
-    const girlfriend = existingData[0].currentGirlfriend;
-    if (Object.keys(girlfriend).length === 0) {
-      session.send((name ? `${name}: ` : '') + session.text(gptgfCmnMsgs + '.noCurrentGirlfriendSaved'))
-      return null
-    }
-    return girlfriend
-  }
+
 
   ctx.model.extend('girlfriends', {
     id: 'unsigned',
@@ -503,10 +290,12 @@ export function apply(ctx: Context, config: Config) {
       return session.execute(`help ${name}`);
     const prompt = session.text('.prompt.baseTag', { text });
     const regex = /[^a-zA-Z0-9,\s]/g;
-    const sdPrompt = (await ask(session, prompt)).replace(/#/g, ",").replace(regex, '');
+    const sdPrompt = (await ask(ctx, session, prompt)).replace(/#/g, ",").replace(regex, '');
     if (config.tag) {
       session.send(`tag： ${sdPrompt}`);
     }
+    session.permissions.push(`command:${ctx.$commander.get(config.command).name}`)
+    logger.debug(`add temp permission: command:${ctx.$commander.get(config.command).name}`)
     await session.execute(`${config.command} ${sdPrompt}`);
   }
 
@@ -531,7 +320,7 @@ export function apply(ctx: Context, config: Config) {
     const type = types[Math.floor(Math.random() * types.length)];
     const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
     console.log(prompt);
-    const response = (await ask(session, prompt)).replace(/（可选）/g, '');
+    const response = (await ask(ctx, session, prompt)).replace(/（可选）/g, '');
     console.log(response);
     const data = JSON.parse(response.match(/{.*?}/s)[0]);
 
@@ -550,7 +339,7 @@ export function apply(ctx: Context, config: Config) {
 
     await formatData(session, data);
 
-    const taggedData = await drawImage(session, data);
+    const taggedData = await drawImage(ctx,session,data);
 
     if (taggedData.tag) {
       await ctx.database.set('girlfriends', { uid: session.uid }, { newGirlfriend: taggedData });
@@ -599,90 +388,7 @@ export function apply(ctx: Context, config: Config) {
   }
 
 
-  async function ask(session: Session, prompt: string) {
-    await ctx.gpt.reset(session.userId);
-    return ctx.gpt.ask(prompt, session.userId)
-      .then(({ text }) => {
-        return text.replace(/\n/g, "");
-      })
-      .catch((err) => {
-        handleError(session, err);
-        throw new Error("Service Error");
-      });
-  }
-
-  async function drawImage(session: Session, data: any, useTag = false) {
-    let text = data.appearance + " " + data.hobbies + " " + session.text(gptgfCmnMsgs + ".female") + data.career + " ";
-    const hairColor = (data.expect_hair_dye_color && data.expect_hair_dye_color !== 'null' && data.expect_hair_dye_color !== 'undefined' && data.expect_hair_dye_color !== '暂无' && data.expect_hair_dye_color !== '无') ? data.expect_hair_dye_color : data.hair_color ?? '';
-    text += ` ${hairColor}hair ${data.hair_style} ${data.eye_color}eye ${data.body_shape} ${data.cloth}`;
-    let promptTag = session.text('commands.gptsd.messages.prompt.baseTag', { text });
-    if (useTag && 'tag' in data) {
-      promptTag = session.text('commands.gptsd.messages.prompt.exampleTag', { text: data.tag.replace(/\n/g, "") })
-        + session.text('commands.gptsd.messages.prompt.clothTag', { text });;
-    }
-    // console.log(promptTag);
-    let sdPrompt;
-    try {
-      sdPrompt = await ask(session, promptTag);
-      sdPrompt = sdPrompt.replace(/#/g, ",");
-      // console.log(sdPrompt);
-      data.tag = sdPrompt;
-      await session.execute(`${config.command} ${sdPrompt}`);
-    } catch (err) {
-      session.send(session.text(`commands.gptsd.messages.response-error`, [err.response.status]))
-    }
-
-    return data;
-  }
-
-  function handleError(session: Session, err: Error) {
-    const prefix = 'commands.gptsd.messages'
-    // console.log(err)
-    if (Quester.isAxiosError(err)) {
-      if (err.response?.data) {
-        logger.error(err.response.data)
-        return session.text(err.response.data.message)
-      }
-      if (err.response?.status === 402) {
-        return session.text(`${prefix}.unauthorized`)
-      } else if (err.response?.status) {
-        return session.text(`${prefix}.response-error`, [err.response.status])
-      } else if (err.code === 'ETIMEDOUT') {
-        return session.text(`${prefix}.request-timeout`)
-      } else if (err.code === 'ECONNRESET') {
-        return session.text(`${prefix}.request-failed`, [err.code])
-      } else if (err.code) {
-        return session.text(`${prefix}.request-failed`, [err.code])
-      }
-    }
-    logger.error(err)
-    return session.text(`${prefix}.unknown-error`)
-  }
-
-  function generateAge(): number {
-    // 分布 mean = 50 stddev = 20
-    const mean = 50, lowerBound = 8, upperBound = 60, avg = 20;
-    const probabilities = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6, 7, 7, 8, 9, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 17, 18, 18, 18, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 16, 16, 15, 14, 14, 13, 13, 12, 11, 11, 10, 10, 9, 9, 8, 7, 7, 6, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1];
-    let age = generateRandomNumber(probabilities);
-    age =
-      age < mean
-        ? (age) * (avg - lowerBound) / mean + lowerBound
-        : (age - mean) * (upperBound - avg) / mean + avg;
-
-    age = Math.round(age);
-    return age;
-  }
-
-  function generateRandomNumber(probabilities: number[]): number {
-    const cdf = probabilities.reduce((acc, val) => {
-      acc.push(acc.length === 0 ? val : acc[acc.length - 1] + val);
-      return acc;
-    }, []);
-    const rnd = Math.random() * cdf[cdf.length - 1];
-    return cdf.findIndex((val) => val > rnd);
-  }
 
   
 
 }
-
