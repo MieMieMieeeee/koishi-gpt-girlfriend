@@ -256,6 +256,27 @@ export function apply(ctx: Context, config: Config) {
       // }, RESPONSE_TIMEOUT);
     });
 
+  ctx.command('gptgf.sign')
+    .alias('gptgf.女友签到')
+    .alias('女友签到')
+    .action(async ({ session }) => {
+      const girlfriend = await getCurrentGirlfriend(ctx, session);
+      if (girlfriend) {
+        const { other } = girlfriend[0];
+        const currentDate = new Date().toISOString().split('T')[0];
+        const lastSignDate = other?.lastSignDate;
+        if (lastSignDate === currentDate) {
+          session.send('你今天已经签到过了！');
+        } else {
+          other.lastSignDate = currentDate;
+          await ctx.database.set('girlfriends', { uid: session.uid }, { other });
+          await updateFavorability(ctx, session, 10);
+          session.send('签到成功！好感度增加10！');
+        }
+      }
+    });
+  
+
   async function getUserInput(session: Session, maxRetries = 3): Promise<string> {
     for (let i = 0; i < 3; i++) {
       const userInput = await session.prompt(60000);
