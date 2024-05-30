@@ -11,8 +11,6 @@ commands:
         exampleTag: 请参考例子“{text}”
         clothTag: 为以下内容写成几个英文的tag供NovelAI使用，请将每个英文tag之间用逗号分割，关注衣服的变化，不要输出其他文字和中文：“{text}”
         base2: 为以下内容写一串英文的novelai的prompt，适当美化使得数量不少于7个，每个prompt用逗号分割，不要输出其他文字,结尾不需要标点：/n“{text}”
-        exampleTag2: 请基于这些词“{text}”
-        duelResultTag: /#/#目的：根据内容添加几个英文的tag供NovelAI使用/#/#要求：这是一个决斗场景，着重描述使用战斗技能时的动作,至少用2个tag/#/#输出格式：请将每个英文tag之间用逗号分割，适当美化使得tag数量不少于7个，不要输出其他文字,结尾不需要标点/#/#内容：“{text}”
       unknown-error: 发生未知错误。
       response-error: 发生未知错误 ({0})。
       request-failed: 请求失败 ({0})，请稍后重试。
@@ -22,12 +20,13 @@ commands:
     usage: |-
       以下为实例：
       ｛指令｝:｛用途｝
-      女友盲盒         : 随机抽女友
-      女友盲盒.保存女友 : 将抽到的女友保存
-      女友盲盒.女友信息 : 查看你保存的女友
-      女友盲盒.康康女友 : 康康你保存的的女友
-      女友盲盒.女友暖暖 : 给你的女友换个衣服
-      女友盲盒.女友约会 : 约会吧（beta）
+      女友盲盒 : 随机抽女友
+      保存女友 : 将抽到的女友保存
+      女友信息 : 查看你保存的女友
+      康康女友 : 康康你保存的的女友
+      女友暖暖 : 给你的女友换个衣服
+      女友约会 : 和你的约会吧
+      女友决斗 : 和别人的女友塔塔开（实验性）
 
     messages:
       newFriend: |-
@@ -43,14 +42,14 @@ commands:
         </random>
       prompt:
         baseAniGirl: |-
+          ##Task:Create a JSON description of a {type} female character.
+          ##Description require following information: age,hair_color,expect_hair_dye_color(option),hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
+          ##Response Format: return json format. key is in english. value is in Simplified Chinese. Like "hair_color": "彩色"
+        baseAniGirlTest: |-
           Give a JSON description of a {type} female character.
           Contain following key in english: age,hair_color,expect_hair_dye_color(option),hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
           The value is the info of the character not the translation of the key.
           Translate value into Simplified Chinese. Like "hair_color": "彩色"
-        baseAniGirlTest: |-
-          Give a JSON description of a {type} female character.
-          Contain following key in english: age,hair_color,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,hobbies,background.
-          value translate into Simplified Chinese.Like "hair_color": "黑色"
     save:
       shortcuts:
         save: 保存女友
@@ -95,6 +94,16 @@ commands:
           baseDateStory: |-
             按以下内容写一段不超过200字的与女友约会的故事。并解释为什么好感度{favorScore}。请用第二人称
             {selectedPlan}
+    duel:
+      messages:
+        prompt: 
+          duelResultTag: |
+            ##Task：根据Content创建一些英文tag.如果提供了Basic Tags请补充不足的tag
+            ##Content：{text}
+            ##Additional Requirment：这是一个决斗场景，详细描述使用战斗技能时的动作,至少用2个tag
+            ##Response format：每个英文tag之间用逗号分割，适当美化使得tag数量不少于7个，不要输出其他文字,结尾不需要标点
+          focus: | 
+            ##Basic Tags: {text}
     common:
       messages:
         noCurrentGirlfriend: 你还没有女朋友呢！先抽一个吧！

@@ -1,4 +1,4 @@
-import { Context, Logger, Quester, Session, Command, h, Random } from 'koishi'
+import { Context, Logger, Quester, Session, Command, h, Random, Dict } from 'koishi'
 import { Config } from './config'
 import { } from '@mirror_cy/gpt'
 import { gptgfCmnMsgs, getCurrentGirlfriend, handleError, generateFavorability, generateAge, ask, updateFavorability, drawImage } from './utilities'
@@ -25,6 +25,7 @@ export const usage = `
 ## 注意：
 - gpt服务（需额外安装）推荐rr-gpt
 - 画图插件（需额外安装）推荐rryth或者novelai`
+
 
 export const logger = new Logger(name)
 
@@ -66,12 +67,10 @@ export function apply(ctx: Context, config: Config) {
     .alias('保存女友')
     .action(async ({ session, options }, text) => {
       try {
-        // 将结果保存到数据库中
         await saveResultToDatabase(session, text)
         session.send(session.text(".saved"))
       } catch (err) {
-        // 如果执行内部指令发生错误，则发送错误消息
-        session.send(session.text('.saved-error', [err.message]))
+        session.send(session.text('.saved-error', err.message))
       }
     });
 
@@ -286,17 +285,34 @@ export function apply(ctx: Context, config: Config) {
   });
 
   async function gptsd(session: Session, text: string,) {
+    logger.debug("gptsd text",text)
     if (!text?.trim())
       return session.execute(`help ${name}`);
+    let imageDict: Dict
+    text = h('', h.transform(h.parse(text), {
+      img(attrs) {
+        if (imageDict) throw new Error('.too-many-images')
+        imageDict=attrs
+        return ''
+      },
+    })).toString(true)
+
     const prompt = session.text('.prompt.baseTag', { text });
+    logger.debug("gptsd prompt",prompt)
     const regex = /[^a-zA-Z0-9,\s]/g;
     const sdPrompt = (await ask(ctx, session, prompt)).replace(/#/g, ",").replace(regex, '');
+    logger.debug("gptsd sdPrompt",sdPrompt)
     if (config.tag) {
       session.send(`tag： ${sdPrompt}`);
     }
     session.permissions.push(`command:${ctx.$commander.get(config.command).name}`)
-    logger.debug(`add temp permission: command:${ctx.$commander.get(config.command).name}`)
-    await session.execute(`${config.command} ${sdPrompt}`);
+    if (imageDict){
+      logger.debug(`${config.command} ${sdPrompt} `+h('img', imageDict))
+      await session.execute(`${config.command} ${sdPrompt} `+h('img', imageDict));
+    }else{
+      await session.execute(`${config.command} ${sdPrompt}`);
+    }
+     
   }
 
   async function saveResultToDatabase(session: Session, text: string) {

@@ -73,21 +73,20 @@ async function drawImageDuelResult(ctx: Context,session: Session, data: any, ski
     let text = data.appearance + " " + data.hobbies + " " + session.text(gptgfCmnMsgs + ".female") + data.career + " ";
     const hairColor = (data.expect_hair_dye_color && data.expect_hair_dye_color !== 'null' && data.expect_hair_dye_color !== 'undefined' && data.expect_hair_dye_color !== '暂无' && data.expect_hair_dye_color !== '无') ? data.expect_hair_dye_color : data.hair_color ?? '';
     text += ` ${hairColor}hair ${data.hair_style} ${data.eye_color}eye ${data.body_shape} ${data.cloth}`;
-    text += ` ${skill}(attack skill)`
+    text += ` ${skill}(战斗技能)`
     let promptTag = ''
     if ('tag' in data) {
-        promptTag = session.text('commands.gptsd.messages.prompt.exampleTag2', { text: data.tag.replace(/\n/g, "") })
+        promptTag = session.text('commands.gptgf.duel.messages.prompt.focus', { text: data.tag.replace(/\n/g, "") })
     }
-    promptTag+= session.text('commands.gptsd.messages.prompt.duelResultTag', { text });
+    promptTag+= session.text('commands.gptgf.duel.messages.prompt.duelResultTag', { text });
     logger.debug(promptTag);
     let sdPrompt;
     try {
       sdPrompt = await ask(ctx, session, promptTag);
       sdPrompt = sdPrompt.replace(/#/g, ",");
+      sdPrompt += ", pixel art, gaming";
       logger.debug(sdPrompt);
-      data.tag = sdPrompt;
       session.permissions.push(`command:${ctx.$commander.get(ctx.config.command).name}`)
-      logger.debug(`add temp permission: command:${ctx.$commander.get(ctx.config.command).name}`) 
       await session.execute(`${ctx.config.command} ${sdPrompt}`);
     } catch (err) {
       session.send(session.text(`commands.gptsd.messages.response-error`, [err.response.status]))

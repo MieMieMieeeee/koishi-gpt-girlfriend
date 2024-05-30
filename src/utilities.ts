@@ -1,6 +1,5 @@
 import { Context, Quester, Session, Random } from 'koishi'
 import { logger } from '.';
-import { Config } from './config'
 
 export const gptgfCmnMsgs = 'commands.gptgf.common.messages'
 
@@ -31,6 +30,7 @@ export async function ask(ctx: Context,session: Session, prompt: string) {
       })
       .catch((err) => {
         handleError(session, err);
+        logger.error("GPT Error: ",err.message)
         throw new Error("Service Error");
       });
 }
@@ -116,15 +116,14 @@ export async function drawImage(ctx: Context,session: Session, data: any, useTag
       promptTag = session.text('commands.gptsd.messages.prompt.exampleTag', { text: data.tag.replace(/\n/g, "") })
         + session.text('commands.gptsd.messages.prompt.clothTag', { text });;
     }
-    // console.log(promptTag);
+    logger.debug("drawImage promptTag:",promptTag);
     let sdPrompt;
     try {
       sdPrompt = await ask(ctx, session, promptTag);
       sdPrompt = sdPrompt.replace(/#/g, ",");
-      // console.log(sdPrompt);
+      logger.debug("drawImage sdPrompt:",sdPrompt);
       data.tag = sdPrompt;
       session.permissions.push(`command:${ctx.$commander.get(ctx.config.command).name}`)
-      logger.debug(`add temp permission: command:${ctx.$commander.get(ctx.config.command).name}`)  
       await session.execute(`${ctx.config.command} ${sdPrompt}`);
     } catch (err) {
       session.send(session.text(`commands.gptsd.messages.response-error`, [err.response.status]))
