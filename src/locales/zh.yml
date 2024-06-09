@@ -26,7 +26,11 @@ commands:
       康康女友 : 康康你保存的的女友
       女友暖暖 : 给你的女友换个衣服
       女友约会 : 和你的约会吧
+      女友签到 : 每日签到（道具商店暂未实装）
       女友决斗 : 和别人的女友塔塔开（实验性）
+      女友决斗重置 : 重置决斗状态，需要权限等级2
+      女友背包 ：查看你的女友背包
+      女友商店 : 购买道具
 
     messages:
       newFriend: |-
@@ -38,12 +42,14 @@ commands:
           <>努力搬运盲盒中...</>
           <>正在提交盲盒订单...</>
           <>派送盲盒中...</>
-          <>正在派送盲盒，可以输入“help 女友盲盒”查看如何和女友约会噢！</>
+          <>正在派送盲盒，可以输入“help 女友盲盒”来查看全部功能噢！</>
+          <>正在派送盲盒，试试“女友决斗”来和别人的女友塔塔开吧！</>
+          <>正在派送盲盒，今天“女友签到”了嘛？</>
         </random>
       prompt:
         baseAniGirl: |-
-          ##Task:Create a JSON description of a {type} female character.
-          ##Description require following information: age,hair_color,expect_hair_dye_color(option),hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
+          ##Task:Create a JSON description of a {type} female character.{option}
+          ##Description only require following information: age,hair_color,expect_hair_dye_color(option),hair_style,eye_color,specialty(option),career(option),personality,height(option),weight(option),cloth(option),appearance,face_shape,body_shape,hobbies,background.
           ##Response Format: return json format. key is in english. value is in Simplified Chinese. Like "hair_color": "彩色"
         baseAniGirlTest: |-
           Give a JSON description of a {type} female character.

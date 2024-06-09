@@ -4,12 +4,13 @@ import { logger } from '.';
 export const gptgfCmnMsgs = 'commands.gptgf.common.messages'
 
 const MAX_FAVORABILITY = 300;
-export const MSG_DELAY = 1400
+export const MSG_DELAY = 1525;
 export const RESPONSE_TIMEOUT = 20000
 
 export async function getCurrentGirlfriend(ctx: Context,session: Session, uid?: string, name?: string) {
     const userUid = uid || session.uid;
-    const existingData = await ctx.database.get('girlfriends', { uid: userUid });    if (existingData.length === 0) {
+    const existingData = await ctx.database.get('girlfriends', { uid: userUid });    
+    if (existingData.length === 0) {
         // 如果不存在记录，抛出一个错误信息
         session.send((name ? `${name}: ` : '') + session.text(gptgfCmnMsgs + '.noCurrentGirlfriend'))
         return null
@@ -46,7 +47,7 @@ export function generateFavorability(): number {
 }
 
 export async function getFavorability(ctx: Context,uid: string) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
+    const girlfriend = await ctx.database.get('girlfriends', { uid: uid });
     return girlfriend[0].currentGirlfriend.favorability;
 }
 export async function updateFavorability(ctx: Context,session, favorScore):Promise<number> {
@@ -105,7 +106,16 @@ export function handleError(session: Session, err: Error) {
     return session.text(`${prefix}.unknown-error`)
 }
 
+export async function setSign(ctx: Context, session: Session, signDate: string): Promise<void> {
+  const sign = await getSign(ctx, session);
+  sign.lastSignDate = signDate;
+  await ctx.database.set('girlfriends', { uid: session.uid }, { sign: sign });
+}
 
+export async function getSign(ctx: Context, session: Session) {
+  const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
+  return existingData[0].sign
+}
 
 export async function drawImage(ctx: Context,session: Session, data: any, useTag = false) {
     let text = data.appearance + " " + data.hobbies + " " + session.text(gptgfCmnMsgs + ".female") + data.career + " ";

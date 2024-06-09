@@ -1,6 +1,7 @@
 import { Context, Session, Random } from 'koishi'
 import { Girlfriend, logger } from '.';
 import { MSG_DELAY, RESPONSE_TIMEOUT, ask, drawImage, getCurrentGirlfriend, gptgfCmnMsgs, updateFavorability } from './utilities';
+import { addCurrency } from './currency';
 
 export async function startDuel(ctx: Context, session: Session, opponentSession: Session, playerGirlfriend: Girlfriend, opponentGirlfriend: Girlfriend) {
     try {
@@ -47,6 +48,7 @@ export async function startDuel(ctx: Context, session: Session, opponentSession:
             playerFavorabilityChange = 20;
             opponentFavorabilityChange = 20;
             resultMessage = `平局！女友好感度各加20。`;
+            await session.sendQueued(resultMessage, MSG_DELAY);
         }
     
         const [playerFavorability, opponentFavorability, playerGirlfriend, opponentGirlfriend] = await Promise.all([
@@ -55,16 +57,39 @@ export async function startDuel(ctx: Context, session: Session, opponentSession:
             getCurrentGirlfriend(ctx, session),
             getCurrentGirlfriend(ctx, opponentSession)
         ]);
-    
+        let player={}, opponentPlayer={};
+        player["favorability"] = playerFavorability;
+        opponentPlayer["favorability"] = opponentFavorability;
+        player["girlfriend"] = playerGirlfriend;
+        opponentPlayer["girlfriend"] = opponentGirlfriend;
+        player["session"] = session;
+        opponentPlayer["session"] = opponentSession;
+        player["lastSkill"] = lastSkill.playerSkill;
+        opponentPlayer["lastSkill"] = lastSkill.opponentSkill;
+
+        let winner, loser;
         if (playerHp > opponentHp) {
-            resultMessage = `${session.username}赢了！好感度增加20，当前好感度：${playerFavorability}。\n${opponentSession.username}输了！好感度减少20，当前好感度：${opponentFavorability}。`;
-            if (playerGirlfriend) await drawImageDuelResult(ctx,session, playerGirlfriend,lastSkill.playerSkill);
+            winner = player;
+            loser = opponentPlayer;
         } else if (playerHp < opponentHp) {
-            resultMessage = `${session.username}输了！好感度减少20，当前好感度：${playerFavorability}。\n${opponentSession.username}赢了！好感度增加20，当前好感度：${opponentFavorability}。`;
-            if (opponentGirlfriend) await drawImageDuelResult(ctx,opponentSession, opponentGirlfriend,lastSkill.opponentSkill);
+            winner = opponentPlayer;
+            loser = player;
         }
 
-        await session.sendQueued(resultMessage,MSG_DELAY);
+        if (winner != undefined && loser != undefined) {
+            await updateBattleStats(ctx, winner.session.uid, true);
+            await updateBattleStats(ctx, loser.session.uid, false);
+            const winnerCurrency = await addCurrency(ctx, winner.session.uid, 10);
+            const loserCurrency = await addCurrency(ctx, loser.session.uid, 5);
+            resultMessage = `${winner.session.username}赢了！好感度增加20，当前好感度：${winner.favorability}(+20)。金币：${winnerCurrency}(+10)。\n${loser.session.username}输了！当前好感度：${loser.favorability}(-20)，金币：${loserCurrency}(+5)。`;    
+            if (winner.girlfriend) await drawImageDuelResult(ctx, winner.session, winner.girlfriend, winner.lastSkill);
+        } else {
+            // 平局
+            await updateBattleStats(ctx, session.uid, true);
+            await updateBattleStats(ctx, opponentSession.uid, true);
+        }
+
+        await session.sendQueued(resultMessage, MSG_DELAY);
     }
 
 }
@@ -201,17 +226,17 @@ export async function checkGlobalBattleStatus(ctx: Context): Promise<boolean> {
     return battleStatus[0].inBattle;
 }
 
-async function setGlobalBattleStatus(ctx: Context, status: boolean): Promise<void> {
+export async function setGlobalBattleStatus(ctx: Context, status: boolean): Promise<void> {
     await ctx.database.set('girlfriends_global', { id: 1 }, { inBattle: status });
 }
 
 async function getBattleHp(ctx: Context,uid: string) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
+    const girlfriend = await ctx.database.get('girlfriends', { uid: uid });
     return girlfriend[0].battle.hp;
 }
 
 async function updateBattleHp(ctx: Context,uid: string, change: number) {
-    const girlfriend = await ctx.database.get('girlfriends', { uid });
+    const girlfriend = await ctx.database.get('girlfriends', { uid: uid });
     const newHp = girlfriend[0].battle.hp + change;
     await ctx.database.set('girlfriends', { uid }, {
         battle: {
@@ -220,4 +245,26 @@ async function updateBattleHp(ctx: Context,uid: string, change: number) {
         }
     });
     return newHp;
+}
+
+async function updateBattleStats(ctx: Context, uid: string, isWinner: boolean) {
+    const battleStats = await getBattleStats(ctx, uid);
+    if (!battleStats.totalBattles) {
+        battleStats.totalBattles = 1;
+    } else {
+        battleStats.totalBattles += 1;
+    }
+    if (isWinner) {
+        if (!battleStats.totalWins) {
+            battleStats.totalWins = 1;
+        } else {
+            battleStats.totalWins += 1;
+        }
+    }
+    await ctx.database.set('girlfriends', { uid }, { battleStats: battleStats });
+}
+
+export async function getBattleStats(ctx: Context, uid: string) {
+    const girlfriend = await ctx.database.get('girlfriends', { uid:uid });  
+    return girlfriend[0].battleStats;
 }

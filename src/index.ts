@@ -1,9 +1,10 @@
-import { Context, Logger, Quester, Session, Command, h, Random, Dict } from 'koishi'
+import { Context, Logger, Quester, Session, Command, h, Random, Dict, remove } from 'koishi'
 import { Config } from './config'
 import { } from '@mirror_cy/gpt'
-import { gptgfCmnMsgs, getCurrentGirlfriend, handleError, generateFavorability, generateAge, ask, updateFavorability, drawImage } from './utilities'
-import { checkGlobalBattleStatus, startDuel } from './duel'
+import { gptgfCmnMsgs, getCurrentGirlfriend, handleError, generateFavorability, generateAge, ask, updateFavorability, drawImage, setSign, getSign } from './utilities'
+import { checkGlobalBattleStatus, setGlobalBattleStatus, startDuel, getBattleStats } from './duel'
 import { MSG_DELAY } from './utilities'
+import { addCurrency, getStore,buyGoods, getGoods, removeGoods, addGoods } from './currency';
 import { log } from 'console'
 
 export const name = 'gptsd'
@@ -55,19 +56,19 @@ export function apply(ctx: Context, config: Config) {
       await gptsd(session, text)
     });
 
-  ctx.command(`gptgf <prompts:text>`)
+  ctx.command(`gptgf`)
     .alias('女友盲盒')
-    .action(async ({ session, options }, text) => {
+    .action(async ({ session}) => {
       session.send(session.text(".init"));
-      await gptgf(session, text);
+      await gptgf(session);
     });
 
-  ctx.command(`gptgf.save <prompts:text>`)
+  ctx.command(`gptgf.save`)
     .alias('gptgf.保存女友')
     .alias('保存女友')
-    .action(async ({ session, options }, text) => {
+    .action(async ({ session}) => {
       try {
-        await saveResultToDatabase(session, text)
+        await saveResultToDatabase(session)
         session.send(session.text(".saved"))
       } catch (err) {
         session.send(session.text('.saved-error', err.message))
@@ -228,12 +229,15 @@ export function apply(ctx: Context, config: Config) {
       }
       // const opponentEvent= new Event
       // const opponentSession = new Session(session.bot,session.event);
-      session.sendQueued(`${opponentName}, 你被挑战了！回复 "接受" 来接受决斗。（测试版中如遇bug请at咩咩）`, MSG_DELAY);
+      session.sendQueued(`${opponentName}, 你被挑战了！回复 "接受" 来接受决斗。`, MSG_DELAY);
 
 
       let opponentAgreed = false;
-      ctx.user(opponentId).once('message', async (msgSession) => {
+      let rejectionCount = 0;
+      let cancelListener;
+      cancelListener=ctx.user(opponentId).on('message', async (msgSession) => {
         if (msgSession.content === '接受') {
+          cancelListener();
           //check again
           isGlobalInBattle = await checkGlobalBattleStatus(ctx);
           if (await checkGlobalBattleStatus(ctx)) {
@@ -244,11 +248,17 @@ export function apply(ctx: Context, config: Config) {
           await startDuel(ctx, session, msgSession, playerGirlfriend, opponentGirlfriend);
           return;
         } else {
-          session.sendQueued('对方拒绝了决斗。', MSG_DELAY);
-          return;
+          rejectionCount++;
+          logger.debug('rejectionCount', rejectionCount);
+          if (rejectionCount >= 3) {
+            session.sendQueued('对方拒绝了决斗。', MSG_DELAY);
+            cancelListener();
+            return;
+          }
         }
       });
-
+      
+      
       // setTimeout(() => {
       //   if (!opponentAgreed) {
       //     session.send('对方没有在规定时间内回复。');
@@ -256,26 +266,130 @@ export function apply(ctx: Context, config: Config) {
       // }, RESPONSE_TIMEOUT);
     });
 
+  ctx.command('gptgf.record')
+  .alias('gptgf.女友战绩')
+  .alias('女友战绩')
+  .action(async ({ session }) => {
+    const battleStats = await getBattleStats(ctx, session.uid);
+
+    const winRate = battleStats.totalBattles === 0 ? 0 : (battleStats.totalWins / battleStats.totalBattles * 100).toFixed(2);
+
+    await session.send(`总决斗次数：${battleStats.totalBattles}, 胜利次数：${battleStats.totalWins}, 胜率：${winRate}%`);
+  });
+
+  ctx.command('gptgf.duel.reset')
+  .alias('gptgf.女友决斗.重置')
+  .alias('女友决斗重置')
+    .action(async ({ session }) => {
+        try {
+            setGlobalBattleStatus(ctx, false);
+            session.send('决斗状态已重置。');
+        } catch (err) {
+            session.send('重置决斗状态失败，错误信息：' + err.message);
+        }
+    });
+  ctx.permissions.depend('command:gptgf.duel.reset', ['authority:2']);
+
   ctx.command('gptgf.sign')
     .alias('gptgf.女友签到')
     .alias('女友签到')
     .action(async ({ session }) => {
       const girlfriend = await getCurrentGirlfriend(ctx, session);
       if (girlfriend) {
-        const { other } = girlfriend[0];
         const currentDate = new Date().toISOString().split('T')[0];
-        const lastSignDate = other?.lastSignDate;
-        if (lastSignDate === currentDate) {
+        const sign = await getSign(ctx, session);
+        if (sign && sign.lastSignDate === currentDate) {
           session.send('你今天已经签到过了！');
         } else {
-          other.lastSignDate = currentDate;
-          await ctx.database.set('girlfriends', { uid: session.uid }, { other });
-          await updateFavorability(ctx, session, 10);
-          session.send('签到成功！好感度增加10！');
+          const favorabilityIncrease = Math.floor(Math.random() * 6) + 10; // between 10 and 15
+          const favorability = await updateFavorability(ctx, session, favorabilityIncrease);
+          const newCurrency = await addCurrency(ctx, session.uid, 10); 
+          await setSign(ctx, session, currentDate);
+          session.send(`签到成功！女友的好感度：${favorability}(+${favorabilityIncrease})。您的金币：${newCurrency}(+10)`);
         }
       }
     });
   
+  ctx.command('gptgf.store [arg1:string] [arg2:string]')
+    .alias('gptgf.女友商店')
+    .alias('女友商店')
+    .action(async ({ session }, arg1,arg2) => {
+      if (arg1 && arg1.startsWith('购买') && arg2 === undefined) {
+        arg2 = arg1.substring(2);
+        arg1 = '购买';
+      }
+      if (arg1 === '购买') {
+        session.sendQueued(await buyGoods(ctx, session.uid, arg2), MSG_DELAY);
+        return;
+      }
+      const store = await getStore(ctx, session.uid);
+      const storeGoods = store.storeGoods;
+      let goodsNames = Object.keys(storeGoods);
+      goodsNames.sort((a, b) => storeGoods[a].id - storeGoods[b].id);
+
+      let storeGoodsStr = '女友商店：\n';
+      for (let i = 0; i < goodsNames.length; i++) {
+        const good = goodsNames[i];
+        storeGoodsStr += `${i+1}.${good} 价格:${storeGoods[good].price} 库存:${storeGoods[good].quantity}\n`;
+      }
+      storeGoodsStr += '如需购买，请使用指令：\n女友商店 购买 [任意商品名]';
+      session.sendQueued(storeGoodsStr, MSG_DELAY);
+    });
+
+  ctx.command("gptgf.inventory [arg1:string] [arg2:string]")
+    .alias('gptgf.女友背包')
+    .alias('女友背包')
+    .action(async ({ session }, arg1,arg2) => {
+      if (arg1 && arg1.startsWith('使用') && arg2 === undefined) {
+        arg2 = arg1.substring(2);
+        arg1 = '使用';
+      }
+      if (arg1 === '使用') {
+        if (arg2 === '定制盲盒') {
+          const useResult = await removeGoods(ctx, session.uid, arg2);
+          if (useResult.suceess) {
+            //定制盲盒
+            session.sendQueued(`您正在使用定制盲盒，请输入定制单词！不要超过5个汉字噢。`, MSG_DELAY);
+            let rejectionCount = 0;
+            let cancelListener;
+            cancelListener=ctx.user(session.userId).on('message', async (msgSession) => {
+                if (msgSession.content.length <= 5){
+                  gptgf(msgSession, msgSession.content);
+                  cancelListener();
+                } else{
+                  rejectionCount++;
+                  logger.debug('rejectionCount', rejectionCount);
+                  session.sendQueued('定制单词不要超过5个字噢！', MSG_DELAY);
+                  if (rejectionCount >= 3) {
+                    session.sendQueued('定制盲盒使用失败', MSG_DELAY);
+                    const goods = await getGoods(ctx, session.uid);
+                    cancelListener();
+                    await addGoods(ctx, session.uid, arg2,goods[arg2].id);
+                    
+                  }
+                  return;
+                }
+            });
+          }else{
+            session.sendQueued(useResult.reason, MSG_DELAY);
+          }
+        } else {
+          session.sendQueued('物品不存在', MSG_DELAY*3);
+        }
+        return;
+      }
+      const goods = await getGoods(ctx, session.uid);
+      let goodsNames = Object.keys(goods);
+      goodsNames.sort((a, b) => goods[a].id - goods[b].id);
+
+      let goodsStr = '女友背包：\n';
+      for (let i = 0; i < goodsNames.length; i++) {
+        const good = goodsNames[i];
+        goodsStr += `${i+1}.${good} 库存:${goods[good].quantity}\n`;
+      }
+      goodsStr += '如需使用，请使用指令：\n女友背包 使用 [任意商品名]';
+      session.sendQueued(goodsStr, MSG_DELAY);
+    });
 
   async function getUserInput(session: Session, maxRetries = 3): Promise<string> {
     for (let i = 0; i < 3; i++) {
@@ -292,14 +406,18 @@ export function apply(ctx: Context, config: Config) {
     throw new Error(session.text('.retryStop'));
   }
 
-
-
   ctx.model.extend('girlfriends', {
     id: 'unsigned',
     uid: 'string',
     currentGirlfriend: 'json',
     newGirlfriend: 'json',
     battle: 'json',
+    sign: 'json',
+    currency: 'integer',
+    goods: 'json',
+    store: 'json',
+    signature: 'string',
+    battleStats: 'json',
     other: 'string',
   }, {
     autoInc: true,
@@ -336,7 +454,7 @@ export function apply(ctx: Context, config: Config) {
      
   }
 
-  async function saveResultToDatabase(session: Session, text: string) {
+  async function saveResultToDatabase(session: Session) {
     const existingData = await ctx.database.get('girlfriends', { uid: session.uid });
 
     if (existingData.length > 0) {
@@ -349,13 +467,18 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
-  async function gptgf(session: Session, text: string,) {
-
+  async function gptgf(session: Session,customWords?:string) {
     const types = ["Japanese anime", "Chinese", "abnormal anime"];
-    // const types = ["Japanese anime", "abnormal anime"];
-    // const types = ["loli"];
     const type = types[Math.floor(Math.random() * types.length)];
-    const prompt = session.text('.prompt.baseAniGirl', { type: generateAge().toString() + "'s " + type });
+    let optionPrompt = ""
+    if (customWords){
+      optionPrompt = "Additional character element: "+customWords
+      optionPrompt += "/n##Description dont contain words like nake or sexual organs."
+    }
+    const prompt = session.text('commands.gptgf.messages.prompt.baseAniGirl', 
+      { type: generateAge().toString() + "'s " + type ,
+        option: optionPrompt
+      });
     console.log(prompt);
     const response = (await ask(ctx, session, prompt)).replace(/（可选）/g, '');
     console.log(response);
@@ -420,12 +543,8 @@ export function apply(ctx: Context, config: Config) {
     age = age + session.text(gptgfCmnMsgs + (age ? ".age" : ".ageUnkown"))
     session.send(
       h('quote', { id: session.messageId }) +
-      session.text('.newFriend', { age: age, output: output }).replace(/null/g, "不明")
+      session.text('commands.gptgf.messages.newFriend', { age: age, output: output }).replace(/null/g, "不明")
     );
   }
-
-
-
-  
 
 }

@@ -5,7 +5,7 @@ declare module 'koishi' {
   }
 }
 
-export interface Girlfriend {
+export interface Girlfriend extends JSON {
   age?: string
   hair_color?: string
   expect_hair_dye_color?: string
@@ -26,6 +26,12 @@ export interface Girlfriend {
   favorability?: number
 }
 
+export interface BattleStats extends JSON {
+  totalBattles: number
+  totalWins: number
+}
+
+
 export interface Girlfriends {
   id: number
   uid: string
@@ -35,10 +41,21 @@ export interface Girlfriends {
     hp: number
     skills?: any[]
   }
+  sign?: {
+    lastSignDate?: string
+  }
+  currency?: number
+  goods?: JSON
+  store?: {
+    storeDate?: string
+    storeGoods?: JSON
+  }
+  signature?: string
+  battleStats?: BattleStats
   other?: string
 }
 
-export interface GirlfriendsGlobal {
+export interface GirlfriendsGlobal extends JSON {
   id: number
   inBattle: boolean
 }
