@@ -6,17 +6,20 @@
 - 随机抽取你的女友（含图）
 - 莫名其妙地写了换装和约会功能
 - 莫名其妙地写了决斗功能（实验性）
-- 省流，开箱即用的方法：请同时安装rr-gpt和rryth插件（画图也可以换为novelai）
-- 还在调整中，应该会经常近期会更新盲盒功能
+- 省流，快速使用指南
+  - 安装@miemiemie/gpt-api插件
+    - 请准备好gpt的官方或者非官方apikey（将非官方地址填入反向代理的配置）
+  - 安装rr2插件（画图也可以换为novelai）
 - 有任何Bug,或者建议可以去koishi群里@miemiemie
+  
 ## 指令：
-- gptgf 女友盲盒  
+- 女友盲盒  
   - 不知道说什么？那就随机抽个！
   - 全部功能请通过以下指令查看
     - help 女友盲盒
 
 ![demo](https://raw.githubusercontent.com/MieMieMieeeee/koishi-gpt-girlfriend/main/img/demo.png)
-- gptsd gpt约稿 智能约稿
+- 智能约稿
   - 用gpt生产tag并直接调用绘画插件绘图
 
 ![demo](https://github.com/MieMieMieeeee/koishi-gpt-girlfriend/blob/main/img/demo_gptsd.png) 
