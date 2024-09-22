@@ -444,6 +444,9 @@ export function apply(ctx: Context, config: Config) {
     if (config.tag) {
       session.send(`tag： ${sdPrompt}`)
     }
+    if (!session.permissions) {
+      session.permissions = [];
+    }
     session.permissions.push(`command:${ctx.$commander.get(config.command).name}`)
     if (imageDict) {
       logger.debug(`${config.command} ${sdPrompt} ` + h('img', imageDict))

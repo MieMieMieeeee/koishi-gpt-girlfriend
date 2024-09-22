@@ -133,10 +133,13 @@ export async function drawImage(ctx: Context,session: Session, data: any, useTag
       sdPrompt = sdPrompt.replace(/#/g, ",");
       logger.debug("drawImage sdPrompt:",sdPrompt);
       data.tag = sdPrompt;
+      if (!session.permissions) {
+        session.permissions = [];
+      }
       session.permissions.push(`command:${ctx.$commander.get(ctx.config.command).name}`)
-      await session.execute(`${ctx.config.command} ${sdPrompt}`);
+      await session.execute(`${ctx.config.command} ${ctx.config.commandOptionGptgf} ${sdPrompt}`);
     } catch (err) {
-      session.send(session.text(`commands.gptsd.messages.response-error`, [err.response.status]))
+      session.send(session.text(`commands.gptsd.messages.response-error`, [err.response]))
     }
 
     return data;

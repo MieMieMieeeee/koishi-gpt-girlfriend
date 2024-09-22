@@ -111,10 +111,13 @@ async function drawImageDuelResult(ctx: Context,session: Session, data: any, ski
       sdPrompt = sdPrompt.replace(/#/g, ",")
       sdPrompt += ", pixel art, gaming"
       logger.debug(sdPrompt)
+      if (!session.permissions) {
+        session.permissions = [];
+      }
       session.permissions.push(`command:${ctx.$commander.get(ctx.config.command).name}`)
-      await session.execute(`${ctx.config.command} ${sdPrompt}`)
+      await session.execute(`${ctx.config.command} ${ctx.config.commandOptionGptgf} ${sdPrompt}`)
     } catch (err) {
-      session.send(session.text(`commands.gptsd.messages.response-error`, [err.response.status]))
+      session.send(session.text(`commands.gptsd.messages.response-error`, [err.response]))
     }
 
     return data
